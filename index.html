@@ -219,7 +219,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-7';
+const APP_VERSION = '2026.11.23-8';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -1220,7 +1220,7 @@ document.getElementById('planOut').addEventListener('change', async e=>{
       A.dialog=Object.assign(A.dialog||{}, {scene:Number(sc), who:document.getElementById('am_dwho').value, line:document.getElementById('am_dline').value.trim(), consent:document.getElementById('am_dconsent')?.checked||false});
       const a=A.scenes[A.dialog.scene]; if(a){ a.clip=null; a.voiced=false; }
     }
-    renderAuto(A.plan);
+    setTimeout(()=>renderAuto(A.plan),0); // 입력칸이 닫히는 중에 화면을 다시 그리면 오류 → 한 박자 뒤에
   }
   if(id==='am_music' && e.target.files[0]){ const f=e.target.files[0]; try{ A.music={name:f.name, buffer:await decodeAudio(f)}; toast('배경음악을 넣었어요'); }catch(err){ toast('이 음악 파일은 읽을 수 없어요'); } renderAuto(A.plan); }
   if(id==='am_refs' && e.target.files.length){
@@ -1537,12 +1537,226 @@ document.addEventListener('click', e=>{
 const _aiPrompt = aiPrompt;
 aiPrompt = function(v){ const t=_aiPrompt(v); return REF_ANALYSIS ? t+`\n\n[참고할 잘된 영상의 구조 — 장면·대사는 베끼지 말고 구조만 참고]\n${refSummary(REF_ANALYSIS)}` : t; };
 
+/* =====================================================================
+   🎤 AI 진행자 숏폼 — 가상 진행자가 카메라를 보며 한국어로 가게를 소개
+   (진행자 얼굴 고정 → 컷마다 말하는 영상 → 키워드 자막 + 위쪽 가게 화면 + AI·광고 표시)
+   ===================================================================== */
+KIND_KO.presenter='진행자';
+const PRES_OPT = {
+  gender:{여성:'woman',남성:'man'},
+  age:{'20대':'in her/his mid 20s','30대':'in her/his 30s','40대':'in her/his 40s','50대':'in her/his 50s'},
+  vibe:{'친근한':'friendly, bright and approachable','전문가':'calm, trustworthy and professional','활발한':'energetic, cheerful and lively'},
+  place:{'가게 안':'inside the shop being introduced, softly blurred background of the real interior','작은 방 스튜디오':'a cozy small home studio room with warm desk lamp and plants','사무실':'a bright modern office','동네 거리':'a pleasant local street in the evening'},
+};
+const GESTURES = ['waving hello with a bright smile','pointing to the side with an excited expression','counting on fingers while explaining','placing a hand on the chest and nodding warmly','giving a thumbs up and an inviting gesture toward the camera','leaning slightly toward the camera as if sharing a secret'];
+let PRES=null;
+function presFor(P){
+  if(!PRES || PRES.plan!==P){
+    const same = PRES && PRES.plan && PRES.plan.v.name===P.v.name;
+    PRES={plan:P, opt: same?PRES.opt:{gender:'여성',age:'20대',vibe:'친근한',place:'가게 안'}, face: same?PRES.face:null, cuts:presScript(P).map(line=>({line, status:'대기'})),
+      pip:true, pose:true, busy:false, video:null, consent:false, own:false};
+  }
+  return PRES;
+}
+function presScript(P){
+  const v=P.v, name=v.name, s=v.s||[];
+  const hook=(P.hooks||[]).find(h=>hangulLen(h)<=26)||P.hooks?.[0]||'';
+  const lines=[`여러분! ${hook.replace(/[.!?]$/,'')}${/[까요죠]$/.test(hook.replace(/[.!?]$/,''))?'?':'!'}`,
+    `오늘 소개할 곳은 ${v.region?v.region+'의 ':''}${name}${hasJong(name)?'이에요':'예요'}.`];
+  if(v.main) lines.push(`대표 메뉴는 ${v.main}!`);
+  const n = v.len<=15?1:v.len<=30?2:3;
+  s.slice(0,n).forEach((x,i)=>lines.push(i===0?`${x}, 이게 ${name}의 자랑이에요.`:`그리고 ${x}까지!`));
+  const max = v.len<=15?3:v.len<=30?5:7;
+  return [...lines.slice(0, max-1), CTAS[v.cta](name).replace('지금','궁금하면 지금')]; // 마지막 컷은 항상 행동 유도
+}
+function presCheck(Pr){
+  for(const c of Pr.cuts){ if(CELEB_RE.test(c.line)) return '🚫 실존 인물(유명인) 이름은 넣을 수 없어요.'; if(REVIEW_RE.test(c.line)) return '🚫 손님 후기처럼 들리는 말("다녀왔는데", "먹어봤는데" 등)은 넣을 수 없어요. 진행자는 손님이 아니라 가게를 소개하는 사람이에요.'; }
+  if(Pr.own && !Pr.consent) return '⚠️ 실제 사람 사진을 진행자로 쓰려면 그 사람의 동의 확인에 체크해 주세요.';
+  return '';
+}
+function presCost(Pr){ const secs=Pr.cuts.reduce((a,c)=>a+presDur(c.line),0); const usd=(Pr.face?0:PRICE.image)+(Pr.pose?Pr.cuts.length*PRICE.image:0)+secs*PRICE.videoPerSec; return `예상 비용: 약 ${(Math.round(usd*aiCfg().won/10)*10).toLocaleString('ko-KR')}원 · 약 ${Math.round(secs)}초`; }
+function presDur(line){ return Math.max(3, Math.min(15, Math.ceil(hangulLen(line)/5.5+1.5))); }
+
+function renderPresenter(P){
+  let box=document.getElementById('presCard');
+  if(!box){ const a=document.getElementById('autoCard'); if(!a) return; a.insertAdjacentHTML('afterend','<div id="presCard"></div>'); box=document.getElementById('presCard'); }
+  const Pr=presFor(P), key=getKey(), warn=presCheck(Pr);
+  const chips=(k)=>Object.keys(PRES_OPT[k]).map(x=>`<button class="chip${Pr.opt[k]===x?' on':''}" data-popt="${k}" data-v="${x}">${x}</button>`).join('');
+  const st=s=>({'대기':'','진행':'warn','완료':'ok','오류':'bad'})[s]||'';
+  box.innerHTML=`<div class="card" style="border:2px solid #db2777"><h3>🎤 AI 진행자 숏폼 <span class="tag">고급</span></h3>
+    <p class="muted" style="margin-top:-4px">AI로 만든 <b>가상 진행자</b>가 카메라를 보며 한국어로 가게를 소개해요. 입 모양·손짓이 함께 움직이고, 키워드 자막과 위쪽 가게 화면이 들어가요.</p>
+    ${key?'':'<div class="warnbox">구글 API 키가 있어야 진짜 진행자 영상이 나와요. 지금은 체험(그림·자막 미리보기)만 돼요.</div>'}
+    <h3 style="font-size:15px;margin:12px 0 6px">① 진행자</h3>
+    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div style="width:120px;flex:none">${Pr.face?`<img src="${Pr.face.url}" style="width:120px;aspect-ratio:9/16;object-fit:cover;border-radius:10px">`:`<div style="width:120px;aspect-ratio:9/16;border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:36px">🙂</div>`}</div>
+      <div style="flex:1;min-width:200px">
+        <label>성별</label><div class="chips">${chips('gender')}</div>
+        <label style="margin-top:6px">나이대</label><div class="chips">${chips('age')}</div>
+        <label style="margin-top:6px">분위기</label><div class="chips">${chips('vibe')}</div>
+        <label style="margin-top:6px">장소</label><div class="chips">${chips('place')}</div>
+        <div class="row" style="margin-top:8px"><button class="btn primary" id="pr_face"${Pr.busy?' disabled':''}>${Pr.face?'진행자 다시 만들기':'✨ 진행자 만들기'}</button>
+          <button class="btn" id="pr_pickface">작업함에서 고르기</button>
+          <label class="btn" style="margin:0;color:var(--ink)">실제 사람 사진<input type="file" accept="image/*" id="pr_ownface" hidden></label></div>
+        ${Pr.own?`<label style="margin-top:6px;font-weight:600"><input type="checkbox" id="pr_consent" style="width:auto"${Pr.consent?' checked':''}> 사진 속 본인에게 얼굴·목소리 AI 사용 동의를 받았어요</label>`:''}
+        <p class="muted" style="margin:6px 0 0">한 번 만든 진행자는 🗂 작업함에 저장돼요. 같은 진행자를 계속 쓰면 <b>가게(또는 대표님 채널)의 얼굴</b>이 돼요.</p>
+      </div></div>
+    <h3 style="font-size:15px;margin:14px 0 6px">② 대본 <span class="muted" style="font-weight:400">(컷마다 한두 문장 · 고쳐도 돼요)</span></h3>
+    ${Pr.cuts.map((c,i)=>{ const m=c.clip?`<video src="${c.clip.url}#t=0.1" preload="metadata" muted playsinline style="width:54px;aspect-ratio:9/16;object-fit:cover;border-radius:6px;background:#000"></video>`:c.img?`<img src="${c.img.url}" style="width:54px;aspect-ratio:9/16;object-fit:cover;border-radius:6px">`:'';
+      return `<div class="row" style="gap:6px;margin-bottom:6px;align-items:flex-start">${m}<div style="flex:1;min-width:0"><div class="row" style="gap:4px"><b style="font-size:13px">컷 ${i+1}</b> <span class="tag ${st(c.status)}">${c.status}</span> <span class="muted" style="font-size:12px">${presDur(c.line)}초</span>${c.voiceOnly?' <span class="tag warn">목소리만</span>':''}</div>
+        <textarea data-cut="${i}" style="min-height:44px;margin-top:4px">${esc(c.line)}</textarea>${c.err?`<div style="color:var(--bad);font-size:12px">${esc(c.err)}</div>`:''}</div>
+        <div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" data-credo="${i}"${Pr.busy?' disabled':''}>다시</button><button class="btn sm danger" data-cdel="${i}">×</button></div></div>`; }).join('')}
+    <div class="row"><button class="btn sm" id="pr_add">＋ 컷 추가</button><button class="btn sm" id="pr_reset">대본 처음으로</button></div>
+    <h3 style="font-size:15px;margin:14px 0 6px">③ 화면</h3>
+    <label style="font-weight:600"><input type="checkbox" id="pr_pip" style="width:auto"${Pr.pip?' checked':''}> 위쪽에 가게 장면 보여 주기 (🤖 자동 만들기에서 만든 그림·기준 사진 사용)</label>
+    <label style="font-weight:600"><input type="checkbox" id="pr_pose" style="width:auto"${Pr.pose?' checked':''}> 컷마다 자세 바꾸기 (더 자연스러움 · 그림 값 조금 더)</label>
+    <p class="muted" style="margin:6px 0">영상에는 <b>'AI 가상 인물 · 광고'</b> 표시가 항상 들어가요. 가상 인물이 사람인 척 광고하면 거짓 광고가 될 수 있어서예요.</p>
+    ${warn?`<div class="warnbox">${esc(warn)}</div>`:''}
+    <p class="muted">${esc(key?presCost(Pr):'체험: 비용 0원')}</p>
+    <button class="btn big" id="pr_go" style="background:#db2777;border-color:#db2777;color:#fff"${Pr.busy||warn?' disabled':''}>${Pr.busy?'⏳ 진행자 영상 만드는 중… (컷마다 1~3분)':'🎤 진행자 영상 만들기'}</button>
+    <div id="pr_log" class="muted" style="margin-top:8px"></div>
+    <div id="pr_out" style="margin-top:10px">${Pr.video?`<div class="okbox">✅ 진행자 영상 완성! (${Pr.video.ext.toUpperCase()} · ${Pr.video.sec}초) · 🗂 작업함에도 저장했어요</div>
+      <video src="${Pr.video.url}" controls playsinline style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video>
+      <a class="btn primary" href="${Pr.video.url}" download="${esc(P.v.name)}_AI진행자_${today()}.${Pr.video.ext}" style="display:block;text-align:center;text-decoration:none;margin-top:8px">⬇ 영상 파일 저장</a>
+      <p class="muted">입 모양이 어색한 컷은 '다시'를 누른 뒤 다시 합치세요. 인스타에 올릴 때 'AI 생성' 표시도 켜 주세요.</p>`:''}</div>
+  </div>`;
+}
+function plog(m){ const el=document.getElementById('pr_log'); if(el) el.textContent=m; }
+async function presFace(Pr){
+  const o=Pr.opt, P=Pr.plan;
+  const ageEN=PRES_OPT.age[o.age].replace('her/his', o.gender==='여성'?'her':'his');
+  const text=`Vertical 9:16 photo of a fictional ${PRES_OPT.gender[o.gender]} ${ageEN}, a Korean short-form video host, ${PRES_OPT.vibe[o.vibe]}. Sitting in ${PRES_OPT.place[o.place].replace('the shop being introduced', `a ${IND[P.v.ind].label} style shop`)}, holding a small black wireless clip-on style microphone near the chest, looking directly into the camera, waist-up framing with space above the head, natural hairstyle and everyday stylish outfit. ${(REAL_LOOK[AUTO?.look||'phone']||REAL_LOOK.phone).img} ${REAL_CORE.replace('inside a real, ordinary Korean shop today','in a real place today')} This is an original fictional person who does not resemble any real celebrity. No text or logos.`;
+  const j=await gpost(`https://generativelanguage.googleapis.com/v1/models/${aiCfg().imageModel}:generateContent`,{contents:[{parts:[{text}]}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'9:16',imageSize:'2K'}}});
+  const p=(j.candidates?.[0]?.content?.parts||[]).find(x=>x.inlineData||x.inline_data); if(!p) throw new Error('진행자 그림이 오지 않았어요');
+  const d=p.inlineData||p.inline_data; const mime=d.mimeType||d.mime_type||'image/png'; return withUrl({b64:d.data,mime,blob:b64ToBlob(d.data,mime)});
+}
+async function presPose(Pr,i){
+  const text=`The attached photo shows our host. Create a new photo of THE SAME PERSON with an identical face, hairstyle, outfit and microphone, in the same place and lighting, ${GESTURES[i%GESTURES.length]}, looking into the camera, waist-up vertical framing. ${REAL_CORE.replace('inside a real, ordinary Korean shop today','in a real place today')} No text or logos.`;
+  const j=await gpost(`https://generativelanguage.googleapis.com/v1/models/${aiCfg().imageModel}:generateContent`,{contents:[{parts:[{inline_data:{mime_type:Pr.face.mime,data:Pr.face.b64}},{text}]}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:'9:16',imageSize:'2K'}}});
+  const p=(j.candidates?.[0]?.content?.parts||[]).find(x=>x.inlineData||x.inline_data); if(!p) throw new Error('자세 그림이 오지 않았어요');
+  const d=p.inlineData||p.inline_data; const mime=d.mimeType||d.mime_type||'image/png'; return withUrl({b64:d.data,mime,blob:b64ToBlob(d.data,mime)});
+}
+async function presTalk(Pr,img,line,onWait){
+  const look=REAL_LOOK[AUTO?.look||'phone']||REAL_LOOK.phone;
+  const text=`Animate this photo as a real short-form video ${look.vid}. The host talks directly to the camera in natural, lively, clear Korean with accurate lip sync, saying exactly: "${line}". Natural facial expressions, blinking and hand gestures like a real Korean short-form creator. Keep the face, hair, outfit and background exactly the same, no morphing. Only this speech with light room ambience, no background music, no on-screen text or subtitles.`;
+  const body={model:aiCfg().videoModel,input:[{type:'image',data:img.b64,mime_type:img.mime},{type:'text',text}],response_format:{type:'video',aspect_ratio:'9:16',duration:presDur(line)+'s',resolution:'720p'}};
+  let j=await gpost('https://generativelanguage.googleapis.com/v1beta/interactions',body,true); const t0=Date.now();
+  while(j.status && j.status!=='completed'){
+    if(/fail|cancel/i.test(j.status)) throw new Error('영상 만들기가 실패했어요 ('+j.status+')');
+    if(Date.now()-t0>10*60*1000) throw new Error('영상이 너무 오래 걸려요');
+    onWait&&onWait(Math.round((Date.now()-t0)/1000)); await sleep(8000);
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${j.id}?key=${encodeURIComponent(getKey())}`); j=await r.json(); if(!r.ok) throw new Error(friendlyError(r.status,j.error?.message));
+  }
+  const out=(j.steps||[]).filter(s=>s.type==='model_output').flatMap(s=>s.content||[]).find(c=>c.type==='video'); if(!out?.data) throw new Error('영상이 오지 않았어요');
+  return withUrl({blob:b64ToBlob(out.data,out.mime_type||'video/mp4')});
+}
+async function presCut(Pr,i){
+  const c=Pr.cuts[i]; const demo=!getKey(); c.status='진행'; c.err=''; c.voiceOnly=false; renderPresenter(Pr.plan);
+  try{
+    if(demo){ c.img=Pr.face||withUrl(await demoImage({ko:'AI 진행자 · 컷 '+(i+1)},'9:16',i+3)); c.clip=null; }
+    else{
+      c.img = (Pr.pose && !Pr.own) ? await presPose(Pr,i) : Pr.face;
+      plog(`컷 ${i+1} 말하는 영상 만드는 중…`);
+      try{ c.clip=await presTalk(Pr,c.img,c.line,s=>plog(`컷 ${i+1} 말하는 영상 만드는 중… ${s}초`)); saveAsset(Pr.plan.v.name,'video',c.clip.blob,{scene:'진행자 '+(i+1)}); }
+      catch(err){ // 말하는 영상이 안 되면: 그림 + AI 목소리로 대신
+        c.clip=null; c.voiceOnly=true; c.err='말하는 영상 실패 → 그림+목소리로 대신: '+err.message;
+        c.audio=await aiVoice(c.line, Pr.opt.gender==='여성'?'Leda':'Puck', '밝고 자연스러운 숏폼 진행자 말투');
+      }
+    }
+    c.status='완료';
+  }catch(err){ c.status='오류'; c.err=err.message; }
+  renderPresenter(Pr.plan); return c.status==='완료';
+}
+async function presRun(Pr){
+  if(Pr.busy) return; actx(); Pr.busy=true; Pr.video=null; renderPresenter(Pr.plan);
+  try{
+    if(!Pr.face){ if(!getKey()){ Pr.face=withUrl(await demoImage({ko:'AI 진행자 (체험)'},'9:16',7)); } else { plog('진행자 얼굴 만드는 중…'); Pr.face=await presFace(Pr); saveAsset(Pr.plan.v.name,'presenter',Pr.face.blob,{}); } }
+    for(let i=0;i<Pr.cuts.length;i++) await presCut(Pr,i);
+  }catch(err){ plog('❌ '+err.message); }
+  Pr.busy=false; renderPresenter(Pr.plan);
+  if(Pr.cuts.some(c=>c.status==='완료')) await presRender(Pr);
+}
+// 자막: 흰 글씨 + 검은 테두리, 가게 이름·강점 낱말은 노란색
+function drawTalkSub(g,text,W,H,keys){
+  const fs=Math.round(W*0.062); g.save(); g.font=`900 ${fs}px ${FONT}`; g.textBaseline='middle'; g.lineJoin='round';
+  const lines=wrapLines(g,text,W*0.86); const lh=fs*1.32; const y0=H*0.66-(lines.length-1)*lh/2;
+  const re = keys.length ? new RegExp('('+keys.map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')') : null;
+  lines.forEach((l,n)=>{
+    const segs = re ? l.split(re).filter(Boolean) : [l]; const tw=g.measureText(l).width; let x=(W-tw)/2; const y=y0+n*lh;
+    segs.forEach(sg=>{ const w=g.measureText(sg).width; g.lineWidth=fs*0.22; g.strokeStyle='rgba(0,0,0,.92)'; g.strokeText(sg,x,y); g.fillStyle = re && re.test(sg) && keys.includes(sg) ? '#ffe14d' : '#fff'; g.fillText(sg,x,y); x+=w; });
+  });
+  g.restore();
+}
+function drawDisclose(g,W,H){ const fs=Math.round(W*0.03); g.save(); g.font=`700 ${fs}px ${FONT}`; const t='AI 가상 인물 · 광고'; const w=g.measureText(t).width+fs*1.2; g.fillStyle='rgba(0,0,0,.5)'; roundRect(g,fs*0.8,fs*0.8,w,fs*1.7,fs*0.5); g.fill(); g.fillStyle='#fff'; g.textBaseline='middle'; g.fillText(t,fs*1.4,fs*1.65); g.restore(); }
+async function presRender(Pr){
+  if(Pr.busy) return; const P=Pr.plan;
+  const items=[]; for(const c of Pr.cuts){ if(c.status!=='완료') continue; const media=await loadMedia({clip:c.clip,img:c.clip?null:c.img}); if(!media) continue;
+    let dur = c.clip && isFinite(media.duration) ? media.duration : Math.max(presDur(c.line), c.audio?c.audio.buffer.duration+0.4:0);
+    items.push({c, media, isVideo:!!c.clip, dur}); }
+  if(!items.length){ toast('합칠 컷이 없어요'); return; }
+  // 위쪽 가게 화면 재료: 자동 만들기 장면 그림 → 기준 사진
+  const pipSrc=[]; if(Pr.pip){ const A=AUTO&&AUTO.plan&&AUTO.plan.v.name===P.v.name?AUTO:null; const srcs=[...(A?A.scenes.map(s=>s.img).filter(Boolean):[]), ...(A?A.refs:[])];
+    for(const s of srcs.slice(0,8)){ const im=new Image(); im.src=s.url; await im.decode().catch(()=>{}); pipSrc.push(im); } }
+  Pr.busy=true; renderPresenter(P); plog('진행자 영상 합치는 중… (영상 길이만큼 걸려요)');
+  const W=720,H=1280; let t=0; items.forEach(it=>{ it.start=t; t+=it.dur; }); const total=t;
+  const keys=[P.v.name, ...(P.v.s||[]).map(x=>x.split(' ').slice(0,2).join(' ')), ...(P.v.event?[P.v.event]:[])].filter(k=>k&&k.length>=2);
+  let cur=-1;
+  const res=await recordCanvas(W,H,total,(g,now,dest,ctx)=>{
+    let i=items.findIndex(it=>now<it.start+it.dur); if(i<0) i=items.length-1;
+    const it=items[i];
+    if(i!==cur){ if(items[cur]?.isVideo) items[cur].media.pause(); cur=i;
+      if(it.isVideo){ if(!it.src){ it.media.muted=false; it.src=ctx.createMediaElementSource(it.media); it.src.connect(dest); } try{ it.media.currentTime=0; it.media.play(); }catch(e){} }
+      plog(`진행자 영상 합치는 중… ${Math.round(now)} / ${Math.round(total)}초`); }
+    g.fillStyle='#000'; g.fillRect(0,0,W,H);
+    const local=now-it.start;
+    if(it.isVideo) drawCover(g,it.media,W,H,1.0,0,0); else drawCover(g,it.media,W,H,1.02+0.03*(local/it.dur),0,0);
+    if(pipSrc.length){ const im=pipSrc[i%pipSrc.length]; const x=W*0.06,y=H*0.085,w=W*0.88,h=H*0.27;
+      g.save(); roundRect(g,x,y,w,h,24); g.clip(); g.fillStyle='#000'; g.fillRect(x,y,w,h); const s=Math.max(w/(im.naturalWidth||1),h/(im.naturalHeight||1))*(1.03+0.04*(local/it.dur)); const dw=(im.naturalWidth||1)*s, dh=(im.naturalHeight||1)*s; g.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); g.restore();
+      g.save(); g.lineWidth=6; g.strokeStyle='rgba(255,255,255,.95)'; roundRect(g,x,y,w,h,24); g.stroke(); g.restore(); }
+    drawTalkSub(g,it.c.line,W,H,keys);
+    drawRealism(g,W,H); drawDisclose(g,W,H);
+  },(ctx,dest,t0)=>{ items.forEach(it=>{ if(!it.isVideo && it.c.audio){ const s=ctx.createBufferSource(); s.buffer=it.c.audio.buffer; s.connect(dest); s.start(t0+it.start+0.15); } });
+    if(AUTO&&AUTO.music&&AUTO.plan===P){ const m=ctx.createBufferSource(), gn=ctx.createGain(); m.buffer=AUTO.music.buffer; m.loop=true; m.connect(gn); gn.connect(dest); gn.gain.setValueAtTime(0.12,t0); gn.gain.setValueAtTime(0.12,t0+total-1.2); gn.gain.linearRampToValueAtTime(0.0001,t0+total); m.start(t0); m.stop(t0+total+0.2); } });
+  items.forEach(it=>{ if(it.isVideo) it.media.pause(); });
+  if(Pr.video) URL.revokeObjectURL(Pr.video.url);
+  Pr.video={url:URL.createObjectURL(res.blob),ext:res.ext,sec:Math.round(total)};
+  if(getKey()) saveAsset(P.v.name,'final',res.blob,{name:`${P.v.name}_AI진행자.${res.ext}`,sec:Math.round(total)});
+  Pr.busy=false; renderPresenter(P); plog('');
+  document.getElementById('pr_out')?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+document.getElementById('planOut').addEventListener('click', async e=>{
+  if(!PRES||!currentPlan||!e.target.closest('#presCard')) return; const Pr=presFor(currentPlan);
+  const o=e.target.closest('[data-popt]'); if(o){ Pr.opt[o.dataset.popt]=o.dataset.v; renderPresenter(Pr.plan); return; }
+  const id=e.target.id;
+  if(id==='pr_face'){ if(!getKey()){ toast('진행자 만들기는 API 키가 필요해요'); return; } Pr.busy=true; renderPresenter(Pr.plan); plog('진행자 얼굴 만드는 중…');
+    try{ Pr.face=await presFace(Pr); Pr.own=false; saveAsset(Pr.plan.v.name,'presenter',Pr.face.blob,{}); Pr.cuts.forEach(c=>{c.status='대기';c.img=null;c.clip=null;}); plog(''); }catch(err){ plog('❌ '+err.message); }
+    Pr.busy=false; renderPresenter(Pr.plan); return; }
+  if(id==='pr_pickface'){ const all=(await libAll()).filter(x=>x.kind==='presenter'); if(!all.length){ toast('작업함에 진행자가 아직 없어요'); return; }
+    const urls=[]; openSheet(`<h2>진행자 고르기<button class="btn sm" id="xBtn">닫기</button></h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">${all.map(x=>{const u=URL.createObjectURL(x.blob); urls.push(u); return `<button class="scene" data-face="${x.id}" style="padding:6px;margin:0;background:var(--card)"><img src="${u}" style="width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:6px"><div style="font-size:12px">${esc(x.project)}</div></button>`;}).join('')}</div>`);
+    document.getElementById('xBtn').onclick=()=>{ closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); };
+    document.getElementById('sheet').querySelectorAll('[data-face]').forEach(b=>b.onclick=async()=>{ const x=all.find(y=>y.id===b.dataset.face); closeSheet(); Pr.face=withUrl({blob:x.blob,mime:x.mime||'image/png',b64:await blobToB64(x.blob)}); Pr.own=false; Pr.cuts.forEach(c=>{c.status='대기';c.img=null;c.clip=null;}); renderPresenter(Pr.plan); });
+    return; }
+  if(id==='pr_add'){ Pr.cuts.push({line:'',status:'대기'}); renderPresenter(Pr.plan); return; }
+  if(id==='pr_reset'){ Pr.cuts=presScript(Pr.plan).map(line=>({line,status:'대기'})); renderPresenter(Pr.plan); return; }
+  if(id==='pr_go'){ Pr.cuts=Pr.cuts.filter(c=>c.line.trim()); presRun(Pr); return; }
+  const d=e.target.closest('[data-cdel]'); if(d){ Pr.cuts.splice(Number(d.dataset.cdel),1); renderPresenter(Pr.plan); return; }
+  const r=e.target.closest('[data-credo]'); if(r && !Pr.busy){ actx(); Pr.busy=true; Pr.video=null; renderPresenter(Pr.plan); Pr.busy=false; await presCut(Pr,Number(r.dataset.credo)); await presRender(Pr); }
+});
+document.getElementById('planOut').addEventListener('change', async e=>{
+  if(!PRES||!currentPlan||!e.target.closest('#presCard')) return; const Pr=presFor(currentPlan);
+  if(e.target.dataset.cut!==undefined){ const c=Pr.cuts[Number(e.target.dataset.cut)]; c.line=e.target.value.trim(); c.status='대기'; c.clip=null; setTimeout(()=>renderPresenter(Pr.plan),0); }
+  if(e.target.id==='pr_pip') Pr.pip=e.target.checked;
+  if(e.target.id==='pr_pose') { Pr.pose=e.target.checked; renderPresenter(Pr.plan); }
+  if(e.target.id==='pr_consent'){ Pr.consent=e.target.checked; renderPresenter(Pr.plan); }
+  if(e.target.id==='pr_ownface' && e.target.files[0]){ const b=await shrinkImage(e.target.files[0]); Pr.face=withUrl({blob:b,mime:b.type||'image/jpeg',b64:await blobToB64(b)}); Pr.own=true; Pr.consent=false; Pr.cuts.forEach(c=>{c.status='대기';c.img=null;c.clip=null;}); renderPresenter(Pr.plan); }
+});
+
 /* ---------- 기획 결과에 붙이기 ---------- */
 const _renderPlan = renderPlan;
 renderPlan = function(P){
   _renderPlan(P);
   if(REF_ANALYSIS){ const el=document.getElementById('autoCard'); if(el) el.insertAdjacentHTML('beforebegin', `<div class="card"><h3>🔍 참고한 잘된 영상의 구조</h3><div class="out" style="margin:0">${esc(refSummary(REF_ANALYSIS))}</div><p class="muted" style="margin:6px 0 0">이 구조를 보고 훅·장면 순서를 골라 쓰세요. 'AI에게 보낼 프롬프트 복사'에도 들어가요.</p></div>`); }
   renderAuto(P);
+  renderPresenter(P);
 };
 
 /* ---------- 설정: AI 연결 ---------- */
