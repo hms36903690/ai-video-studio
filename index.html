@@ -215,7 +215,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-3';
+const APP_VERSION = '2026.11.23-4';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -883,6 +883,21 @@ function renderAll(){ renderHome(); renderOrders(); renderPlanList(); renderSett
 
 load(); applyTheme(); renderNav(); initPlanForm(); renderAll(); go(location.hash.slice(1)||'home');
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+// 새 버전이 올라오면 스스로 알아채고 한 번 새로고침 (자동 만들기 중에는 하지 않음)
+async function checkUpdate(){
+  if(!location.protocol.startsWith('http')) return;
+  try{
+    const r=await fetch('index.html?v='+Date.now(),{cache:'no-store'}); const t=await r.text();
+    const m=t.match(/APP_VERSION = '([^']+)'/); if(!m || m[1]===APP_VERSION) return;
+    if(typeof AUTO!=='undefined' && AUTO && AUTO.busy) return;
+    if(sessionStorage.getItem('aivs_reloaded')===m[1]) return; // 같은 버전으로 두 번 새로고침하지 않기
+    sessionStorage.setItem('aivs_reloaded', m[1]);
+    const reg=await navigator.serviceWorker?.getRegistration(); if(reg) await reg.update().catch(()=>{});
+    toast('새 버전('+m[1]+')으로 바꾸는 중…'); setTimeout(()=>location.reload(), 800);
+  }catch(e){}
+}
+checkUpdate();
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(); });
 </script>
 <script>
 'use strict';
