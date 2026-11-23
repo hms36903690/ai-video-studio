@@ -244,7 +244,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-13';
+const APP_VERSION = '2026.11.23-15';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -1299,10 +1299,10 @@ async function renderStudio(){
   const st=s=>({'대기':'','진행':'warn','완료':'ok','오류':'bad'})[s||'대기']||'';
   box.innerHTML=`<div class="card">
     <div class="row"><select id="st_proj" style="flex:1;min-width:140px">${S.projects.map(p=>`<option value="${p.id}"${p.id===P.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select>
-      <button class="btn sm" id="st_new">＋ 새 프로젝트</button><button class="btn sm" id="st_ren">이름</button><button class="btn sm danger" id="st_del">삭제</button></div>
+      <button class="btn sm primary" id="st_openp">📚 프롬프트 열기</button><button class="btn sm" id="st_new">＋ 새 프로젝트</button><button class="btn sm" id="st_ren">이름</button><button class="btn sm danger" id="st_del">삭제</button></div>
     <div class="row" style="margin-top:8px"><span class="muted">비율</span>${['9:16','16:9','1:1'].map(r=>`<button class="chip${P.ar===r?' on':''}" data-sar="${r}">${r}</button>`).join('')}
       <span class="muted" style="margin-left:6px">느낌</span>${Object.entries(REAL_LOOK).map(([k,v])=>`<button class="chip${P.look===k?' on':''}" data-slook="${k}">${k==='phone'?'📱 휴대폰':'📷 광고'}</button>`).join('')}</div>
-    <p class="muted" style="margin:8px 0 0">컷마다 <b>노드</b>를 만들어요. <b>그림 노드</b>로 장면 그림을 만들고, <b>영상 노드</b>에서 그 그림을 <b>불러와</b> 움직임·대사를 글로 쓰면 영상이 돼요. 대사는 <b>"큰따옴표"</b> 안에 쓰면 인물이 한국어로 말해요. 마지막에 <b>합치기</b>.</p>
+    <p class="muted" style="margin:8px 0 0">컷마다 <b>노드</b>를 만들어요. <b>그림 노드</b>로 장면 그림을 만들고, <b>영상 노드</b>에서 그 그림을 <b>불러와</b> 움직임·대사를 글로 쓰면 영상이 돼요. 대사는 <b>"큰따옴표"</b> 안에 쓰면 인물이 한국어로 말해요. 마지막에 <b>합치기</b>. 위의 <b>📚 프롬프트 열기</b>로 저장해 둔 프롬프트·영상 세트를 바로 불러올 수 있어요.</p>
     ${key?'':'<div class="warnbox" style="margin-top:8px">⚙️ 설정 → AI 연결에 키를 넣어야 그림·영상이 만들어져요. 지금은 노드 짜기·내 파일 넣기·합치기만 돼요.</div>'}
   </div>
   <div style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;align-items:flex-start">
@@ -1314,7 +1314,7 @@ async function renderStudio(){
           <span><button class="btn sm" data-nmv="${i}:-1">◀</button><button class="btn sm" data-nmv="${i}:1">▶</button><button class="btn sm danger" data-ndel="${i}">🗑</button></span></div>
         <div style="margin-top:6px">${prev}</div>
         <textarea data-nprompt="${i}" style="margin-top:6px;min-height:84px;font-size:14px" placeholder="${n.type==='video'?'예: 왼쪽 인물이 웃으며 "어서 오세요, 사쿠라미치입니다"라고 말한다. 카메라가 천천히 다가간다.':'예: 벚꽃 장식 아래 바 좌석에 앉은 20대 커플, 따뜻한 조명'}">${esc(n.prompt||'')}</textarea>
-        <div class="row" style="gap:4px;margin-top:4px"><button class="btn sm" data-nbig="${i}">✏️ 크게 쓰기</button><span class="muted" style="font-size:12px">${hangulLen(n.prompt||'')}자</span></div>
+        <div class="row" style="gap:4px;margin-top:4px"><button class="btn sm" data-nbig="${i}">✏️ 크게 쓰기</button><button class="btn sm" data-nopen="${i}">📚 불러오기</button><span class="muted" style="font-size:12px">${hangulLen(n.prompt||'')}자</span></div>
         ${n.type==='video'?`<label style="margin-top:6px">그림 부르기</label><select data-nimg="${i}"><option value="">(그림 없이 글로만)</option>${imgs.map(x=>`<option value="${x.id}"${n.imgFrom===x.id?' selected':''}>${nodeLabel(P,x)}${x.assetId?'':' (아직 없음)'}</option>`).join('')}</select>
           <label style="margin-top:6px">길이</label><select data-ndur="${i}">${[3,4,5,6,8,10,12,15].map(d=>`<option${(n.dur||6)===d?' selected':''}>${d}</option>`).join('')}</select>
           ${quotes(n.prompt).length?`<div class="muted" style="font-size:12px;margin-top:4px">🗣 대사: ${esc(quotes(n.prompt).join(' / '))}</div>`:''}`
@@ -1336,6 +1336,24 @@ async function renderStudio(){
     <div id="st_log" class="muted" style="margin-top:6px"></div>
     ${STU.video?`<div class="okbox" style="margin-top:8px">✅ 완성 (${STU.video.ext.toUpperCase()} · ${STU.video.sec}초) · 🗂 작업함에도 저장했어요</div><video src="${STU.video.url}" controls playsinline style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video><a class="btn primary" href="${STU.video.url}" download="${esc(P.name)}_${today()}.${STU.video.ext}" style="display:block;text-align:center;text-decoration:none;margin-top:8px">⬇ 영상 파일 저장</a>`:''}
   </div>`;
+}
+// 📚 스튜디오에서 프롬프트 열기: 세트 → 새 프로젝트 / 저장한 프롬프트 → 노드 추가·노드 글 바꾸기
+function openPromptSheet(target){ // target: 노드 번호 (없으면 새 노드로 추가)
+  const P=curProj(); const mine=userSets();
+  openSheet(`<h2>📚 프롬프트 열기${target!=null?` · ${nodeLabel(P,P.nodes[target])}에 넣기`:''}<button class="btn sm" id="xBtn">닫기</button></h2>
+    ${target==null?`<h3 style="font-size:15px">🎬 영상 세트 (새 프로젝트로 노드가 한 번에)</h3>${PROMPT_SETS.map(S=>`<div class="scene"><b>${esc(S.title)}</b><div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div><button class="btn sm primary" data-opset="${S.id}">이 세트로 만들기</button></div>`).join('')}`:''}
+    <h3 style="font-size:15px">💾 내가 저장한 프롬프트</h3>
+    ${mine.length?mine.map((m,i)=>`<div class="scene"><b>${esc(m.title)}</b> <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span><div class="out" style="font-size:13px;max-height:100px;overflow:auto">${esc(m.text)}</div>
+      <button class="btn sm primary" data-opmine="${i}">${target!=null?'이 노드에 넣기':'노드로 추가'}</button></div>`).join(''):'<div class="empty">아직 없어요. ✏️ 프롬프트 화면에서 만든 뒤 💾 모음에 저장하면 여기에 나와요.</div>'}
+    <div class="row" style="margin-top:8px"><button class="btn" id="op_go">✏️ 프롬프트 화면에서 새로 만들기</button></div>`);
+  const sh=document.getElementById('sheet');
+  document.getElementById('xBtn').onclick=closeSheet;
+  document.getElementById('op_go').onclick=()=>{ closeSheet(); go('promptp'); };
+  sh.querySelectorAll('[data-opset]').forEach(b=>b.onclick=()=>{ const S=PROMPT_SETS.find(x=>x.id===b.dataset.opset); const St=studio(); const proj={id:uid(),name:S.title.replace(/^\S+\s/,'').replace(/\s*\(.*\)$/,''),ar:S.ar,look:S.look,nodes:setNodes(S)}; St.projects.unshift(proj); St.cur=proj.id; save(); closeSheet(); STU.video=null; renderStudio(); toast(`노드 ${proj.nodes.length}개를 만들었어요. 그림 노드부터 차례로 만들어 주세요`); });
+  sh.querySelectorAll('[data-opmine]').forEach(b=>b.onclick=()=>{ const m=mine[Number(b.dataset.opmine)];
+    if(target!=null){ const n=P.nodes[target]; n.prompt=m.text; n.status=n.assetId?n.status:'대기'; }
+    else { const last=[...P.nodes].reverse().find(x=>x.type==='image'); P.nodes.push(m.kind==='video'?{id:uid(),type:'video',prompt:m.text,imgFrom:last?.id||'',dur:6}:{id:uid(),type:'image',prompt:m.text}); }
+    save(); closeSheet(); renderStudio(); toast(target!=null?'노드 글을 바꿨어요':'노드를 추가했어요'); });
 }
 function slog(m){ const el=document.getElementById('st_log'); if(el) el.textContent=m; }
 async function nodeGen(P,n){
@@ -1407,6 +1425,8 @@ document.addEventListener('click', async e=>{
   if(id==='st_ren'){ const name=prompt('새 이름',P.name); if(!name) return; P.name=name.trim(); save(); renderStudio(); return; }
   if(id==='st_del'){ if(!confirm(`'${P.name}' 프로젝트를 지울까요? (작업함에 저장된 그림·영상은 남아요)`)) return; S.projects=S.projects.filter(x=>x!==P); S.cur=S.projects[0]?.id||null; save(); renderStudio(); return; }
   if(id==='st_merge'){ studioMerge(); return; }
+  if(id==='st_openp'){ openPromptSheet(null); return; }
+  const op=e.target.closest('[data-nopen]'); if(op){ openPromptSheet(Number(op.dataset.nopen)); return; }
   const ar=e.target.closest('[data-sar]'); if(ar){ P.ar=ar.dataset.sar; save(); renderStudio(); return; }
   const lk=e.target.closest('[data-slook]'); if(lk){ P.look=lk.dataset.slook; save(); renderStudio(); return; }
   const ad=e.target.closest('[data-nadd]'); if(ad){ const t=ad.dataset.nadd; if(t==='pair'){ const im={id:uid(),type:'image',prompt:''}; P.nodes.push(im,{id:uid(),type:'video',prompt:'',imgFrom:im.id,dur:6}); } else { const last=[...P.nodes].reverse().find(x=>x.type==='image'); P.nodes.push(t==='video'?{id:uid(),type:'video',prompt:'',imgFrom:last?.id||'',dur:6}:{id:uid(),type:'image',prompt:''}); } save(); renderStudio(); setTimeout(()=>{ const r=document.querySelector('#studioBox [style*="overflow-x"]'); if(r) r.scrollLeft=r.scrollWidth; },50); return; }
@@ -1579,6 +1599,40 @@ function pbBuild(){
   if(PB.kind==='image') return `${PB.what}${ko?` (${ko})`:''}\n\n[영어 보조] ${en}. ${realTail(PB.look)}`;
   return `${PB.what}${ko?` (${ko})`:''}. 대사가 있으면 "큰따옴표" 안에.\n\n[영어 보조] ${en}. Make it look like real footage ${(REAL_LOOK[PB.look]||REAL_LOOK.phone).vid}; physically plausible natural motion, no morphing, no on-screen text.`;
 }
+/* ---------- 📚 프롬프트 모음 (여러 컷짜리 세트 → 스튜디오 노드로 한 번에) ---------- */
+const PROMPT_SETS=[
+  {id:'dog-cvs', title:'🐶 편의점 알바 강아지 (6컷 · 약 30초)', desc:'흰 곱슬 강아지가 파란 조끼를 입고 편의점에서 일하는 귀여운 숏폼. 조회수가 잘 나오는 "동물 알바생" 형식. 편의점을 고객 가게(카페·빵집·꽃집 등)로 바꿔 홍보용으로도 써요.',
+   ar:'9:16', look:'phone',
+   anchor:'흰색 곱슬 털의 작은 비숑 프리제 강아지 한 마리 (둥근 솜뭉치 얼굴, 까만 동그란 눈과 코, 짧은 다리). 파란색 편의점 직원 조끼를 입고 있고, 가슴에 글자 없는 작은 흰색 명찰이 달려 있다',
+   place:'밝은 형광등 아래의 깨끗한 한국 동네 편의점 (상표·글자 없는 생수병·우유·과자가 가득 진열된 선반과 유리문 냉장고)',
+   cuts:[
+    {img:'{dog}가 음료 냉장고 앞 진열대에서 뒷발로 서서 앞발로 생수병을 정리하는 모습을 옆에서 본 장면. 아래에 파란 장바구니. {place}.', vid:'강아지가 앞발로 생수병을 하나씩 톡톡 밀어 줄을 맞춘다. 꼬리를 살랑살랑 흔든다. 카메라는 손에 들고 찍은 듯 살짝 흔들린다.', sub:'오늘 첫 출근한 신입 알바생'},
+    {img:'같은 강아지가 같은 진열대 앞에서 앞발을 선반에 올리고 병 라벨 쪽을 진지하게 바라보는 가까운 장면. {place}.', vid:'강아지가 병 하나를 앞발로 살짝 돌려 정면이 보이게 맞추고, 고개를 갸웃한다. 카메라가 천천히 다가간다.', sub:'진열은 각 맞춰서'},
+    {img:'같은 강아지가 유리문 냉장고 문 앞에 서서 안쪽 음료를 들여다보는 넓은 장면. 시원한 냉기와 밝은 조명. {place}.', vid:'강아지가 앞발로 냉장고 문을 살짝 밀어 열고 안을 들여다본 뒤 만족한 듯 꼬리를 흔든다. 냉기가 살짝 흘러나온다.', sub:'냉장고 점검 완료'},
+    {img:'같은 강아지가 계산대 위에 얌전히 앉아 카메라(손님)를 정면으로 바라보는 장면. 옆에 바코드 스캐너와 작은 상품 바구니. {place}.', vid:'강아지가 카메라를 보며 고개를 갸웃하고 혀를 살짝 내밀며 웃는다. 반갑게 "멍!" 하고 한 번 짖는다.', sub:'어서 오세요, 손님!'},
+    {img:'같은 강아지가 계산대에서 앞발로 우유팩 하나를 손님 쪽으로 밀어 주는 가까운 장면. 바코드 스캐너의 빨간 불빛. {place}.', vid:'"삑" 하는 계산 소리와 함께 강아지가 앞발로 우유팩을 카메라 쪽으로 천천히 밀어 준다. 뿌듯한 표정.', sub:'계산 도와드릴게요'},
+    {img:'같은 강아지가 다시 진열대 앞에서 일을 마치고 어깨 너머로 카메라를 돌아보는 장면. 따뜻한 느낌. {place}.', vid:'강아지가 뒤돌아 카메라를 보며 꼬리를 크게 흔든다. 카메라가 천천히 뒤로 물러나며 가게 전체가 보인다.', sub:'퇴근까지 3시간…🐾'},
+   ],
+   tip:'자막은 스튜디오 노드에 넣지 않았어요(강아지는 말을 안 해서). 합친 뒤 캡컷에서 위 자막을 넣거나, 영상 노드 글 끝에 "큰따옴표 대사"로 넣으면 자막으로 들어가요.'},
+];
+function setNodes(S){
+  const nodes=[]; let first=null;
+  S.cuts.forEach((c,i)=>{ const fill=t=>t.replace('{dog}',S.anchor).replace('{place}',S.place).replace('같은 강아지',i?'같은 강아지('+S.anchor.split('.')[0]+')':'');
+    const im={id:uid(),type:'image',prompt:fill(c.img),keepFrom:first?first.id:''}; if(!first) first=im;
+    nodes.push(im,{id:uid(),type:'video',prompt:c.vid,imgFrom:im.id,dur:5}); });
+  return nodes;
+}
+function setText(S){ return `[${S.title}]\n${S.desc}\n\n주인공: ${S.anchor}\n장소: ${S.place}\n\n`+S.cuts.map((c,i)=>`컷 ${i+1}\n[그림] ${c.img.replace('{dog}','강아지').replace('{place}','편의점')}\n[영상] ${c.vid}\n[자막] ${c.sub}`).join('\n\n'); }
+function userSets(){ return DB.promptSaves=DB.promptSaves||[]; }
+function renderPromptSets(){
+  const mine=userSets();
+  return `<div class="card"><h3>📚 프롬프트 모음</h3><p class="muted" style="margin-top:-4px">여러 컷짜리 영상 세트예요. <b>🎛 스튜디오로 만들기</b>를 누르면 그림·영상 노드가 한 번에 생기고, 그림 노드를 위에서부터 만들면 <b>같은 주인공</b>이 유지돼요.</p>
+    ${PROMPT_SETS.map(S=>`<div class="scene"><b>${esc(S.title)}</b><div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div>
+      <details><summary class="muted" style="font-size:13px">컷 ${S.cuts.length}개 보기</summary>${S.cuts.map((c,i)=>`<div style="font-size:13px;margin-top:6px"><b>컷 ${i+1}</b> · 자막 "${esc(c.sub)}"<br>🖼 ${esc(c.img.replace('{dog}','강아지').replace('{place}','편의점'))}<br>🎬 ${esc(c.vid)}</div>`).join('')}<p class="muted" style="font-size:12px">${esc(S.tip)}</p></details>
+      <div class="row" style="gap:4px;margin-top:6px"><button class="btn sm primary" data-psnode="${S.id}">🎛 스튜디오로 만들기</button><button class="btn sm" data-pscopy="${S.id}">복사</button></div></div>`).join('')}
+    ${mine.length?`<h3 style="font-size:15px;margin-top:12px">💾 내가 저장한 프롬프트</h3>${mine.map((m,i)=>`<div class="scene"><b>${esc(m.title)}</b> <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span><div class="out" style="font-size:13px;max-height:120px;overflow:auto">${esc(m.text)}</div>
+      <div class="row" style="gap:4px"><button class="btn sm" data-mycopy="${i}">복사</button><button class="btn sm" data-myuse="${i}">불러오기</button><button class="btn sm danger" data-mydel="${i}">삭제</button></div></div>`).join('')}`:''}</div>`;
+}
 function renderPromptPage(){
   const box=document.getElementById('promptBox'); if(!box) return;
   const chips=k=>Object.keys(PB_OPT[k]).map(x=>`<button class="chip${PB[k]===x?' on':''}" data-pbo="${k}" data-v="${x}">${x}</button>`).join('');
@@ -1591,7 +1645,8 @@ function renderPromptPage(){
     <label style="margin-top:8px">느낌</label><div class="chips">${lookChips(PB.look,'pbl')}</div>
     <div class="row" style="margin-top:10px"><button class="btn primary" id="pb_make">✨ 프롬프트 만들기</button><button class="btn" id="pb_ai"${getKey()?'':' disabled'}>🤖 AI로 더 다듬기</button></div></div>
     ${PB.out?`<div class="card"><h3>결과</h3><textarea id="pb_out" style="min-height:160px;font-size:14px">${esc(PB.out)}</textarea>
-      <div class="row" style="margin-top:8px"><button class="btn" id="pb_copy">복사</button><button class="btn primary" id="pb_toimg">🖼 이미지 생성으로</button><button class="btn" id="pb_tovid">🎬 영상 제작으로</button><button class="btn" id="pb_tonode">🎛 스튜디오 노드로</button></div></div>`:''}`;
+      <div class="row" style="margin-top:8px"><button class="btn" id="pb_copy">복사</button><button class="btn" id="pb_save">💾 모음에 저장</button><button class="btn primary" id="pb_toimg">🖼 이미지 생성으로</button><button class="btn" id="pb_tovid">🎬 영상 제작으로</button><button class="btn" id="pb_tonode">🎛 스튜디오 노드로</button></div></div>`:''}
+    ${renderPromptSets()}`;
 }
 document.addEventListener('click', async e=>{
   if(!e.target.closest('#promptBox')) return; const id=e.target.id; const w=document.getElementById('pb_what'); if(w) PB.what=w.value.trim();
@@ -1607,6 +1662,12 @@ document.addEventListener('click', async e=>{
   if(id==='pb_copy'){ copy(out()); return; }
   if(id==='pb_toimg'){ IG.prompt=out(); go('imagegen'); return; }
   if(id==='pb_tovid'){ VG.prompt=out(); go('videogen'); return; }
+  if(id==='pb_save'){ const title=window.prompt('저장할 이름',PB.what.slice(0,20)); if(!title) return; userSets().unshift({title:title.trim(),kind:PB.kind,text:out()}); save(); toast('프롬프트 모음에 저장했어요'); renderPromptPage(); return; }
+  const sn=e.target.closest('[data-psnode]'); if(sn){ const S=PROMPT_SETS.find(x=>x.id===sn.dataset.psnode); const St=studio(); const proj={id:uid(),name:S.title.replace(/^\S+\s/,'').replace(/\s*\(.*\)$/,''),ar:S.ar,look:S.look,nodes:setNodes(S)}; St.projects.unshift(proj); St.cur=proj.id; save(); toast(`노드 ${proj.nodes.length}개를 만들었어요. 그림 노드부터 차례로 만들어 주세요`); go('studio'); return; }
+  const sc=e.target.closest('[data-pscopy]'); if(sc){ copy(setText(PROMPT_SETS.find(x=>x.id===sc.dataset.pscopy))); return; }
+  const mc=e.target.closest('[data-mycopy]'); if(mc){ copy(userSets()[Number(mc.dataset.mycopy)].text); return; }
+  const mu=e.target.closest('[data-myuse]'); if(mu){ const m=userSets()[Number(mu.dataset.myuse)]; PB.out=m.text; PB.kind=m.kind; renderPromptPage(); window.scrollTo(0,0); return; }
+  const md=e.target.closest('[data-mydel]'); if(md){ if(!confirm('이 프롬프트를 지울까요?')) return; userSets().splice(Number(md.dataset.mydel),1); save(); renderPromptPage(); return; }
   if(id==='pb_tonode'){ const P=curProj(); P.nodes.push({id:uid(),type:PB.kind,prompt:out(),dur:6}); save(); toast('스튜디오에 노드를 넣었어요'); go('studio'); }
 });
 
