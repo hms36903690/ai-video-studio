@@ -211,6 +211,7 @@ details summary{cursor:pointer;font-weight:700}
   <section class="page" id="p-loop"><div id="loopBox"></div></section>
   <section class="page" id="p-refsheet"><div id="refsheetBox"></div></section>
   <section class="page" id="p-fashion"><div id="fashionBox"></div></section>
+  <section class="page" id="p-music"><div id="musicBox"></div></section>
 
   <!-- 작업함 -->
   <section class="page" id="p-library"><div id="libBox"></div></section>
@@ -250,7 +251,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-16';
+const APP_VERSION = '2026.11.23-17';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -904,7 +905,7 @@ $('#importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; t
 $('#resetBtn').onclick=()=>{ if(confirm('주문·기획안·설정을 모두 지울까요? 되돌릴 수 없어요. 먼저 백업을 권해요.') && confirm('정말 지울까요?')){ DB=defaults(); save(); applyTheme(); renderAll(); toast('모두 지웠어요'); } };
 
 /* ---------- 화면 이동 ---------- */
-const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드'],['promptp','✏️','프롬프트'],['imagegen','🖼','이미지 생성'],['videogen','🎬','영상 제작'],['loop','🔁','루프 영상'],['refsheet','🧾','레퍼런스 시트'],['fashion','👗','패션 AI']];
+const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드'],['promptp','✏️','프롬프트'],['imagegen','🖼','이미지 생성'],['videogen','🎬','영상 제작'],['loop','🔁','루프 영상'],['refsheet','🧾','레퍼런스 시트'],['fashion','👗','패션 AI'],['music','🎵','배경음악']];
 // 왼쪽 메뉴: 묶음(섹션)별로 / to = 그 화면 안의 칸으로 바로 이동
 const SIDE=[
   {k:'home',i:'🏠',l:'홈'},
@@ -919,6 +920,7 @@ const SIDE=[
   {k:'studio',i:'🎛',l:'스튜디오'},
   {k:'refsheet',i:'🧾',l:'레퍼런스 시트',dot:1},
   {k:'fashion',i:'👗',l:'패션 AI',dot:1},
+  {k:'music',i:'🎵',l:'배경음악',dot:1},
   {sec:'사업 관리'},
   {k:'orders',i:'📋',l:'주문 · 견적서'},
   {k:'home',i:'📈',l:'매출 · 목표',to:'top'},
@@ -993,6 +995,8 @@ const AI_DEFAULT = {
   ttsModel:'gemini-3.8-flash-lite-tts',     // 목소리
   videoModel:'gemini-omni-1.2-flash',       // 고급 모드 영상 (Gemini Omni Flash)
   textModel:'',                             // 레퍼런스 분석 (비우면 자동 선택)
+  musicClip:'lyria-3-clip-preview',         // 배경음악 30초
+  musicFull:'lyria-3.5',                    // 배경음악 1분 안팎
   won:1400,                                 // 1달러 → 원 (대략)
 };
 // 2026-11 구글 요금표 기준 (유료 등급)
@@ -1187,11 +1191,11 @@ async function renderLibrary(){
     <label style="margin-top:8px">종류</label><div class="chips" id="libKind"><button class="chip${!libFilter.kind?' on':''}" data-k="">전체</button>${Object.entries(KIND_KO).map(([k,l])=>`<button class="chip${libFilter.kind===k?' on':''}" data-k="${k}">${l}</button>`).join('')}</div>
     ${libFilter.project?`<div style="margin-top:10px"><button class="btn sm danger" id="libDelProj">이 가게 작업물 모두 지우기</button></div>`:''}
   </div>
-  <div class="card">${list.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${list.map(x=>{ const u=URL.createObjectURL(x.blob); libUrls.push(u); const isV=['video','final','loop'].includes(x.kind);
-      return `<div class="scene" style="padding:8px;margin:0">${isV?`<video src="${u}#t=0.1" preload="metadata" controls playsinline ${x.kind==='loop'?'loop':''} style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;background:#000"></video>`:`<img src="${u}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px">`}
+  <div class="card">${list.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${list.map(x=>{ const u=URL.createObjectURL(x.blob); libUrls.push(u); const isV=['video','final','loop'].includes(x.kind); const isA=x.kind==='music';
+      return `<div class="scene" style="padding:8px;margin:0">${isA?`<div style="aspect-ratio:3/4;border-radius:8px;background:var(--soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:6px"><span style="font-size:34px">🎵</span><audio src="${u}" controls style="width:100%"></audio></div>`:isV?`<video src="${u}#t=0.1" preload="metadata" controls playsinline ${x.kind==='loop'?'loop':''} style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px;background:#000"></video>`:`<img src="${u}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px">`}
         <div style="font-size:13px;margin-top:4px"><b>${esc(x.project)}</b> <span class="tag${x.kind==='final'?' ok':''}">${KIND_KO[x.kind]||x.kind}</span></div>
         <div class="muted" style="font-size:12px">${x.created.slice(0,10)}${x.scene?' · 장면 '+x.scene:''}${x.sec?' · '+x.sec+'초':''}</div>
-        <div class="row" style="gap:4px;margin-top:4px"><a class="btn sm" href="${u}" download="${esc(x.name||(x.project+'_'+(KIND_KO[x.kind]||x.kind)+(x.scene?'_장면'+x.scene:'')+'.'+(isV?(x.mime.includes('mp4')?'mp4':'webm'):(x.mime.includes('png')?'png':'jpg'))))}" style="text-decoration:none">저장</a><button class="btn sm danger" data-ldel="${x.id}">삭제</button></div></div>`; }).join('')}</div>`
+        <div class="row" style="gap:4px;margin-top:4px"><a class="btn sm" href="${u}" download="${esc(x.name||(x.project+'_'+(KIND_KO[x.kind]||x.kind)+(x.scene?'_장면'+x.scene:'')+'.'+(isA?(x.mime.includes('wav')?'wav':'mp3'):isV?(x.mime.includes('mp4')?'mp4':'webm'):(x.mime.includes('png')?'png':'jpg'))))}" style="text-decoration:none">저장</a><button class="btn sm danger" data-ldel="${x.id}">삭제</button></div></div>`; }).join('')}</div>`
     :'<div class="empty">아직 보관된 것이 없어요. 이미지 생성·영상 제작·스튜디오로 만들면 여기에 자동으로 모여요.</div>'}</div>`;
 }
 document.addEventListener('click', async e=>{
@@ -1337,7 +1341,7 @@ async function renderStudio(){
   <div class="card"><h3>🎞 영상 노드 합치기</h3>
     <label style="font-weight:600"><input type="checkbox" id="st_sub" style="width:auto"${STU.sub?' checked':''}> 따옴표 대사를 자막으로 넣기</label>
     <label style="font-weight:600"><input type="checkbox" id="st_label" style="width:auto"${STU.label?' checked':''}> 'AI 연출' 표시 넣기 (권장)</label>
-    <label style="margin-top:6px">배경음악 (선택)</label><input type="file" id="st_music" accept="audio/*"><p class="muted" style="margin:4px 0">${STU.music?'🎵 '+esc(STU.music.name):'영상 속 소리(대사·주변 소리)는 그대로 들어가요.'}</p>
+    <label style="margin-top:6px">배경음악 (선택)</label><div class="row"><input type="file" id="st_music" accept="audio/*" style="flex:1;min-width:0"><button class="btn sm" id="st_mpick">🎵 작업함 음악</button></div><p class="muted" style="margin:4px 0">${STU.music?'🎵 '+esc(STU.music.name):'영상 속 소리(대사·주변 소리)는 그대로 들어가요.'}</p>
     <button class="btn primary big" id="st_merge"${STU.busy?' disabled':''}>${STU.busy?'⏳ 작업 중…':'🎞 영상 노드 합치기'}</button>
     <div id="st_log" class="muted" style="margin-top:6px"></div>
     ${STU.video?`<div class="okbox" style="margin-top:8px">✅ 완성 (${STU.video.ext.toUpperCase()} · ${STU.video.sec}초) · 🗂 작업함에도 저장했어요</div><video src="${STU.video.url}" controls playsinline style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video><a class="btn primary" href="${STU.video.url}" download="${esc(P.name)}_${today()}.${STU.video.ext}" style="display:block;text-align:center;text-decoration:none;margin-top:8px">⬇ 영상 파일 저장</a>`:''}
@@ -1432,6 +1436,11 @@ document.addEventListener('click', async e=>{
   if(id==='st_del'){ if(!confirm(`'${P.name}' 프로젝트를 지울까요? (작업함에 저장된 그림·영상은 남아요)`)) return; S.projects=S.projects.filter(x=>x!==P); S.cur=S.projects[0]?.id||null; save(); renderStudio(); return; }
   if(id==='st_merge'){ studioMerge(); return; }
   if(id==='st_openp'){ openPromptSheet(null); return; }
+  if(id==='st_mpick'){ const all=(await libAll()).filter(x=>x.kind==='music'&&x.blob); if(!all.length){ toast('작업함에 음악이 없어요. 🎵 배경음악 메뉴에서 만들어 보세요'); return; } const urls=[];
+    openSheet(`<h2>🎵 배경음악 고르기<button class="btn sm" id="xBtn">닫기</button></h2>${all.map(x=>{ const u=URL.createObjectURL(x.blob); urls.push(u); return `<div class="scene"><b>${esc(x.name||'배경음악')}</b><audio src="${u}" controls style="width:100%;margin:6px 0"></audio><button class="btn sm primary" data-mtake="${x.id}">이 음악 쓰기</button></div>`; }).join('')}`);
+    const close=()=>{ closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); }; document.getElementById('xBtn').onclick=close;
+    document.getElementById('sheet').querySelectorAll('[data-mtake]').forEach(b=>b.onclick=async()=>{ const x=all.find(y=>y.id===b.dataset.mtake); close(); try{ STU.music={name:x.name||'배경음악',buffer:await decodeAudio(x.blob)}; toast('배경음악을 넣었어요'); }catch(err){ toast('이 음악은 읽을 수 없어요'); } renderStudio(); });
+    return; }
   const op=e.target.closest('[data-nopen]'); if(op){ openPromptSheet(Number(op.dataset.nopen)); return; }
   const ar=e.target.closest('[data-sar]'); if(ar){ P.ar=ar.dataset.sar; save(); renderStudio(); return; }
   const lk=e.target.closest('[data-slook]'); if(lk){ P.look=lk.dataset.slook; save(); renderStudio(); return; }
@@ -1860,6 +1869,89 @@ document.addEventListener('change', async e=>{
   if(e.target.id==='fa_consent'){ FA.consent=e.target.checked; renderFashion(); }
 });
 
+/* ---------- 🎵 배경음악: AI로 만들기(구글 Lyria) · 무료 음원 찾기 · 음악 출처 기록 ---------- */
+KIND_KO.music='배경음악';
+const MU_PRICE={clip:0.04, full:0.08};
+const MU_OPT={
+  mood:{'따뜻한':'warm, cozy and heartfelt','세련된':'stylish, modern and minimal','활기찬':'upbeat, energetic and cheerful','고급스러운':'luxurious, elegant and cinematic','신뢰감':'hopeful, trustworthy corporate','귀여운':'cute, playful and bouncy','감성적인':'emotional, dreamy and nostalgic','일본풍':'Japanese izakaya mood, calm city-pop / lo-fi'},
+  inst:{'어쿠스틱 기타':'acoustic guitar','피아노':'piano','로파이 비트':'lo-fi hip hop beat','신스·전자음':'synthesizers and electronic beats','현악기':'strings','우쿨렐레·휘파람':'ukulele and whistling','재즈':'jazz trio (piano, upright bass, brushed drums)'},
+  tempo:{'느리게':'slow tempo around 75 BPM','보통':'medium tempo around 100 BPM','빠르게':'fast tempo around 125 BPM'},
+};
+const MU={mood:'따뜻한', inst:'어쿠스틱 기타', tempo:'보통', len:'clip', vocal:false, lyrics:'', extra:'', img:null, results:[], busy:false, msg:''};
+function muPrompt(){
+  let t=`${MU.len==='clip'?'Create a 30-second':'Create a 1-minute'} background music track for a short-form promotional video of a local shop. Mood: ${MU_OPT.mood[MU.mood]}. Main instruments: ${MU_OPT.inst[MU.inst]}. ${MU_OPT.tempo[MU.tempo]}. Clean intro, steady middle that sits nicely under a voice-over, and a soft natural ending (no abrupt cut).`;
+  if(MU.extra) t+=` Extra direction: ${MU.extra}.`;
+  if(MU.img) t+=' Match the mood and colors of the attached image.';
+  if(MU.vocal && MU.lyrics) t+=`\n\nInclude a short catchy Korean jingle sung with these lyrics (keep the Korean words exactly):\n[Chorus]\n${MU.lyrics}`;
+  else t+=' Instrumental only, no vocals.';
+  return t+' Do not imitate any specific real artist or existing song.';
+}
+const MU_SEARCH={'따뜻한':'warm acoustic','세련된':'modern minimal','활기찬':'upbeat happy','고급스러운':'elegant cinematic','신뢰감':'corporate inspiring','귀여운':'cute playful','감성적인':'emotional piano','일본풍':'lofi japan city pop'};
+function musicLog(){ return DB.musicLog=DB.musicLog||[]; }
+function renderMusic(){
+  const box=document.getElementById('musicBox'); if(!box) return;
+  const ch=k=>Object.keys(MU_OPT[k]).map(x=>`<button class="chip${MU[k]===x?' on':''}" data-muo="${k}" data-v="${x}">${x}</button>`).join('');
+  const q=encodeURIComponent(MU_SEARCH[MU.mood]+' '+(MU_OPT.inst[MU.inst].split(' ')[0]));
+  const log=musicLog();
+  box.innerHTML=`<div class="card"><h3>🎵 AI로 배경음악 만들기</h3>${needKey()}
+    <p class="muted" style="margin-top:-4px">버튼만 고르면 구글 AI(Lyria)가 <b>세상에 없는 새 음악</b>을 만들어요. 남의 곡이 아니라 저작권 걱정이 적고, 가게마다 <b>전용 음악</b>을 줄 수 있어요.</p>
+    <label>분위기</label><div class="chips">${ch('mood')}</div>
+    <label style="margin-top:8px">악기</label><div class="chips">${ch('inst')}</div>
+    <label style="margin-top:8px">빠르기</label><div class="chips">${ch('tempo')}</div>
+    <label style="margin-top:8px">길이</label><div class="chips"><button class="chip${MU.len==='clip'?' on':''}" data-mulen="clip">30초 (약 ${Math.round(MU_PRICE.clip*aiCfg().won)}원)</button><button class="chip${MU.len==='full'?' on':''}" data-mulen="full">1분 안팎 (약 ${Math.round(MU_PRICE.full*aiCfg().won)}원)</button></div>
+    <label style="margin-top:8px;font-weight:600"><input type="checkbox" id="mu_vocal" style="width:auto"${MU.vocal?' checked':''}> 🎤 가게 징글(노래) 넣기 — 짧은 가사를 AI가 불러 줘요</label>
+    ${MU.vocal?`<textarea id="mu_lyrics" placeholder="예: 벚꽃길 끝에 사쿠라미치~ 오늘 밤도 여기서 만나요~" style="margin-top:4px">${esc(MU.lyrics)}</textarea>`:''}
+    <label style="margin-top:8px">더 원하는 점 (선택)</label><input id="mu_extra" value="${esc(MU.extra)}" placeholder="예: 마지막에 종소리, 비 오는 밤 느낌">
+    <label style="margin-top:8px">참고 그림 (선택 · 그림 분위기에 맞춰 작곡)</label><div class="row" style="gap:6px">${MU.img?`<img src="${MU.img.url}" style="width:56px;height:56px;object-fit:cover;border-radius:8px"><button class="btn sm danger" id="mu_imgdel">빼기</button>`:''}<label class="btn sm" style="margin:0;color:var(--ink)">사진<input type="file" accept="image/*" id="mu_img" hidden></label><button class="btn sm" id="mu_imgpick">작업함</button></div>
+    <details style="margin-top:8px"><summary class="muted" style="font-size:13px">AI에게 보내는 지시문 보기</summary><div class="out" style="font-size:12px">${esc(muPrompt())}</div></details>
+    <button class="btn primary big" id="mu_go" style="margin-top:10px"${MU.busy||!getKey()?' disabled':''}>${MU.busy?'⏳ 작곡 중… (30초~1분)':'🎵 음악 만들기'}</button><div class="muted" id="mu_msg" style="margin-top:6px">${esc(MU.msg)}</div>
+    <p class="muted" style="font-size:12px">AI 음악에는 들리지 않는 구글 워터마크(SynthID)가 들어 있어요. 고객 광고에 쓰기 전 구글 이용약관의 상업적 이용 조건을 한 번 확인해 주세요.</p></div>
+  ${MU.results.length?`<div class="card"><h3>만든 음악 <span class="muted" style="font-weight:400">· 🗂 작업함에 저장됨</span></h3>${MU.results.map((r,i)=>`<div class="scene"><b>${esc(r.title)}</b><audio src="${r.url}" controls style="width:100%;margin-top:6px"></audio>
+      <div class="row" style="gap:4px;margin-top:4px"><a class="btn sm" href="${r.url}" download="${esc(r.title)}.${r.ext}" style="text-decoration:none">⬇ 저장</a><button class="btn sm primary" data-mustu="${i}">🎛 스튜디오 배경음악으로</button></div></div>`).join('')}</div>`:''}
+  <div class="card"><h3>🔎 무료 음원 찾기</h3><p class="muted" style="margin-top:-4px">지금 고른 분위기로 검색해요. <b>상업적 이용 가능</b>한 곡만 쓰세요.</p>
+    <div class="row"><a class="btn" href="https://pixabay.com/music/search/${q}/" target="_blank" rel="noopener">Pixabay Music (무료·상업 OK)</a><a class="btn" href="https://studio.youtube.com/" target="_blank" rel="noopener">YouTube 오디오 보관함</a><a class="btn" href="https://gongu.copyright.or.kr/" target="_blank" rel="noopener">공유마당</a></div>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">검색어: <b>${esc(decodeURIComponent(q))}</b> · 유행가요(K-pop 등)는 고객 영상에 쓰면 안 돼요. 받은 곡은 아래 '출처 기록'에 꼭 남겨 두세요.</p></div>
+  <div class="card"><h3>📒 음악 출처 기록</h3><p class="muted" style="margin-top:-4px">어느 고객 영상에 어떤 음악을 어디서 받아 썼는지 남겨 두면, 나중에 저작권 문의가 와도 바로 증명할 수 있어요. (AI로 만든 음악은 자동 기록)</p>
+    <div class="formgrid"><div><label>고객·영상</label><input id="ml_who" placeholder="예: 사쿠라미치 11월 릴스"></div><div><label>곡 이름</label><input id="ml_song"></div>
+      <div><label>출처</label><select id="ml_src"><option>Pixabay Music</option><option>YouTube 오디오 보관함</option><option>공유마당</option><option>캡컷 (상업적 이용 가능)</option><option>유료 음원 구독</option><option>AI (구글 Lyria)</option><option>기타</option></select></div><div><label>링크·메모</label><input id="ml_memo" placeholder="곡 주소, 저작자 표시 문구 등"></div>
+      <div class="full"><button class="btn" id="ml_add">＋ 기록 추가</button></div></div>
+    ${log.length?`<div class="list" style="margin-top:10px">${log.map((l,i)=>`<div class="item" style="align-items:flex-start"><div class="grow"><b>${esc(l.song||'(곡 이름 없음)')}</b> <span class="tag">${esc(l.src)}</span><div class="muted" style="font-size:12px">${esc(l.date)} · ${esc(l.who||'(고객 미정)')}${l.memo?' · '+esc(l.memo):''}</div></div><button class="btn sm danger" data-mldel="${i}">×</button></div>`).join('')}</div>
+      <button class="btn sm" id="ml_copy" style="margin-top:8px">📋 기록 전체 복사</button>`:''}</div>`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#musicBox')) return; const id=e.target.id;
+  const ly=document.getElementById('mu_lyrics'); if(ly) MU.lyrics=ly.value.trim(); const ex=document.getElementById('mu_extra'); if(ex) MU.extra=ex.value.trim();
+  const o=e.target.closest('[data-muo]'); if(o){ MU[o.dataset.muo]=o.dataset.v; renderMusic(); return; }
+  const l=e.target.closest('[data-mulen]'); if(l){ MU.len=l.dataset.mulen; renderMusic(); return; }
+  if(id==='mu_imgdel'){ MU.img=null; renderMusic(); return; }
+  if(id==='mu_imgpick'){ pickFromLib(['image','sheet','fashion','ref','presenter'],'참고 그림 고르기',m=>{ MU.img=m; renderMusic(); }); return; }
+  if(id==='mu_go'){
+    if(CELEB_RE.test(MU.extra+' '+MU.lyrics)){ toast('🚫 실존 가수·유명인 이름은 넣을 수 없어요'); return; }
+    if(MU.vocal && !MU.lyrics){ toast('징글 가사를 써 주세요'); return; }
+    MU.busy=true; MU.msg=''; renderMusic();
+    try{
+      const parts=[{text:muPrompt()}]; if(MU.img) parts.push({inline_data:{mime_type:MU.img.mime,data:MU.img.b64||await blobToB64(MU.img.blob)}});
+      const model=MU.len==='clip'?aiCfg().musicClip:aiCfg().musicFull;
+      const j=await gpost(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{contents:[{parts}]});
+      const p=(j.candidates?.[0]?.content?.parts||[]).find(x=>x.inlineData||x.inline_data); if(!p) throw new Error(friendlyError(200,j.candidates?.[0]?.finishReason||'음악이 오지 않았어요'));
+      const d=p.inlineData||p.inline_data; const mime=d.mimeType||d.mime_type||'audio/mpeg'; const ext=/wav/.test(mime)?'wav':'mp3';
+      const title=`${MU.mood} · ${MU.inst}${MU.vocal?' · 징글':''} (${today()})`;
+      const r=withUrl({blob:b64ToBlob(d.data,mime),mime,ext,title}); MU.results.unshift(r);
+      saveAsset('배경음악','music',r.blob,{name:title+'.'+ext});
+      musicLog().unshift({date:today(),who:'(아직 미정)',song:title,src:'AI (구글 Lyria)',memo:`${model} · SynthID 워터마크 포함`}); save();
+    }catch(err){ MU.msg='❌ '+err.message; }
+    MU.busy=false; renderMusic(); return; }
+  const su=e.target.closest('[data-mustu]'); if(su){ const r=MU.results[Number(su.dataset.mustu)]; try{ STU.music={name:r.title, buffer:await decodeAudio(r.blob)}; toast('스튜디오 배경음악으로 넣었어요'); go('studio'); }catch(err){ toast('이 음악은 읽을 수 없어요'); } return; }
+  if(id==='ml_add'){ const v=k=>document.getElementById(k).value.trim(); if(!v('ml_song')&&!v('ml_who')){ toast('고객·영상이나 곡 이름을 써 주세요'); return; } musicLog().unshift({date:today(),who:v('ml_who'),song:v('ml_song'),src:document.getElementById('ml_src').value,memo:v('ml_memo')}); save(); renderMusic(); toast('기록했어요'); return; }
+  const dl=e.target.closest('[data-mldel]'); if(dl){ if(!confirm('이 기록을 지울까요?')) return; musicLog().splice(Number(dl.dataset.mldel),1); save(); renderMusic(); return; }
+  if(id==='ml_copy'){ copy('[음악 출처 기록]\n'+musicLog().map(l=>`${l.date} | ${l.who} | ${l.song} | ${l.src} | ${l.memo}`).join('\n')); }
+});
+document.addEventListener('change', async e=>{
+  if(!e.target.closest('#musicBox')) return;
+  if(e.target.id==='mu_vocal'){ MU.vocal=e.target.checked; renderMusic(); }
+  if(e.target.id==='mu_img' && e.target.files[0]){ const [m]=await fileToMedia(e.target.files[0]); MU.img=m; renderMusic(); }
+});
+
 /* ---------- 기획 결과에 붙이기 ---------- */
 const _renderPlan = renderPlan;
 renderPlan = function(P){
@@ -1885,6 +1977,8 @@ function renderAISettings(){
       <div><label>목소리</label><input id="ai_tts" value="${esc(c.ttsModel)}"></div>
       <div><label>고급 모드 영상</label><input id="ai_vid" value="${esc(c.videoModel)}"></div>
       <div><label>레퍼런스 분석 (비우면 자동)</label><input id="ai_txt" value="${esc(c.textModel)}" placeholder="자동 선택"></div>
+      <div><label>배경음악 30초</label><input id="ai_mclip" value="${esc(c.musicClip)}"></div>
+      <div><label>배경음악 긴 곡</label><input id="ai_mfull" value="${esc(c.musicFull)}"></div>
       <div><label>1달러 = ?원</label><input id="ai_won" inputmode="numeric" value="${c.won}"></div>
       <div class="full row"><button class="btn" id="ai_cfg">모델 저장</button><button class="btn" id="ai_reset">처음 값으로</button></div></div></details>`;
 }
@@ -1898,13 +1992,13 @@ document.addEventListener('click', async e=>{
       const names=(j.models||[]).map(x=>x.name.replace('models/','')); const c=aiCfg();
       const chk=n=>names.includes(n)?'✅':'❔'; m.textContent=`✅ 연결됐어요 · 그림 ${chk(c.imageModel)} 목소리 ${chk(c.ttsModel)} · 분석 ${await pickTextModel()} (❔는 목록에 안 보이는 것: 실제로 만들어 보면 확인돼요)`; }
     catch(err){ m.textContent='❌ 인터넷 연결을 확인해 주세요.'; } }
-  if(id==='ai_cfg'){ const c=aiCfg(); c.imageModel=document.getElementById('ai_img').value.trim()||AI_DEFAULT.imageModel; c.ttsModel=document.getElementById('ai_tts').value.trim()||AI_DEFAULT.ttsModel; c.videoModel=document.getElementById('ai_vid').value.trim()||AI_DEFAULT.videoModel; c.textModel=document.getElementById('ai_txt').value.trim(); _textModel=null; c.won=Number(document.getElementById('ai_won').value)||AI_DEFAULT.won; save(); renderAISettings(); toast('저장했어요'); }
+  if(id==='ai_cfg'){ const c=aiCfg(); c.imageModel=document.getElementById('ai_img').value.trim()||AI_DEFAULT.imageModel; c.ttsModel=document.getElementById('ai_tts').value.trim()||AI_DEFAULT.ttsModel; c.videoModel=document.getElementById('ai_vid').value.trim()||AI_DEFAULT.videoModel; c.textModel=document.getElementById('ai_txt').value.trim(); c.musicClip=document.getElementById('ai_mclip').value.trim()||AI_DEFAULT.musicClip; c.musicFull=document.getElementById('ai_mfull').value.trim()||AI_DEFAULT.musicFull; _textModel=null; c.won=Number(document.getElementById('ai_won').value)||AI_DEFAULT.won; save(); renderAISettings(); toast('저장했어요'); }
   if(id==='ai_reset'){ DB.settings.ai=Object.assign({},AI_DEFAULT); _textModel=null; save(); renderAISettings(); toast('처음 값으로 돌렸어요'); }
 });
 const _renderSettings = renderSettings;
 renderSettings = function(){ _renderSettings(); renderAISettings(); };
 renderAISettings(); renderRefCard();
-window.onPage = p => { if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard(); if(p==='promptp') renderPromptPage(); if(p==='imagegen') renderImageGen(); if(p==='videogen') renderVideoGen(); if(p==='loop') renderLoopPage(); if(p==='refsheet') renderRefSheet(); if(p==='fashion') renderFashion();
+window.onPage = p => { if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard(); if(p==='promptp') renderPromptPage(); if(p==='imagegen') renderImageGen(); if(p==='videogen') renderVideoGen(); if(p==='loop') renderLoopPage(); if(p==='refsheet') renderRefSheet(); if(p==='fashion') renderFashion(); if(p==='music') renderMusic();
 };
 window.onPage(location.hash.slice(1)||'home');
 </script>
