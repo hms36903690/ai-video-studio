@@ -215,7 +215,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-4';
+const APP_VERSION = '2026.11.23-5';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -353,6 +353,12 @@ const IND_KEYS = Object.keys(IND);
 
 // 강점 낱말 → 장면 (영어 프롬프트, 한국어 설명)
 const STRENGTH_SHOTS = [
+  [/벚꽃|사쿠라|꽃 인테리어|꽃장식/, 'cozy izakaya interior with a ceiling covered in pink cherry blossom decorations, warm lantern light, wooden bar seats','천장 가득 벚꽃 장식이 있는 실내'],
+  [/육사시미|생고기|육회|말고기/, 'thinly sliced fresh raw beef sashimi arranged in a circle on a black slate plate with garnish, glistening','생고기 한 접시'],
+  [/사시미|모둠회|스시|초밥/, 'top-down shot of a fresh assorted sashimi platter on a black slate plate, wasabi and lemon, glistening','신선한 모둠 사시미 한 상'],
+  [/나베|전골|탕/, 'bubbling Japanese hot pot (nabe) on a tabletop burner, steam rising, seafood and vegetables','보글보글 끓는 나베'],
+  [/데이트|커플|연인/, 'Korean couple in their late 20s smiling and toasting with glasses at a cozy izakaya table, romantic warm light','데이트하는 커플'],
+  [/라스트오더|자정|새벽/, 'warmly lit izakaya interior late at night, a few guests at the bar, quiet street visible through the window','늦은 밤에도 불 켜진 가게'],
   [/주차/, 'spacious parking area right in front of the building, convenient access','건물 앞 넓은 주차장'],
   [/야간|늦게|밤|24시/, 'warmly lit storefront at night, open and welcoming','밤에도 불 켜진 매장'],
   [/넓|단체|룸|좌석/, 'spacious interior with large tables suitable for groups','넓은 좌석·단체석'],
@@ -439,8 +445,8 @@ function buildPlan(v){
   const scenes = scenePlan(v.len).map(([type,sec],i)=>{
     let en, ko, sub, nar;
     const S = I.shots;
-    if(type==='hook'){ [en,ko]=S.hook; sub=hooks[0]; const fit=hooks.find(x=>hangulLen(x)<=sec*CPS)||hooks.slice().sort((a,b)=>hangulLen(a)-hangulLen(b))[0]; nar=fit+'.'; }
-    else if(type==='empathy'){ [en,ko]=S.space; const e=pick(I.empathy,0); sub=e; nar=(v.target?v.target+', ':'')+e; }
+    if(type==='hook'){ [en,ko]=S.hook; const fit=hooks.find(x=>hangulLen(x)<=sec*CPS)||hooks.slice().sort((a,b)=>hangulLen(a)-hangulLen(b))[0]; sub=fit; nar=fit+'.'; }
+    else if(type==='empathy'){ [en,ko]=S.space; const e=pick(I.empathy,0); sub=e; nar=(v.target && hangulLen(v.target+e)<=sec*CPS)?v.target+', '+e:e; }
     else if(type==='intro'){ [en,ko]=S.space; if(v.ind==='company') [en,ko]=S.product; sub=name+(v.main?'\n'+v.main:''); nar=I.intro(name,v.main,v.region).trim(); if(hangulLen(nar)>sec*CPS) nar=`${v.region?v.region+'의 ':''}${name}.`; if(hangulLen(nar)>sec*CPS) nar=name+'.'; }
     else if(type==='strength'){
       const st = strengths[sIdx]; const fk = ['product','detail','trust'][sIdx%3];
