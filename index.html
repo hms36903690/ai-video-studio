@@ -200,6 +200,12 @@ details summary{cursor:pointer;font-weight:700}
   <section class="page" id="p-aichat"><div id="aichatBox"></div></section>
   <section class="page" id="p-archive"><div id="archiveBox"></div></section>
   <section class="page" id="p-storyboard"><div id="sbBox"></div></section>
+  <section class="page" id="p-promptp"><div id="promptBox"></div></section>
+  <section class="page" id="p-imagegen"><div id="imagegenBox"></div></section>
+  <section class="page" id="p-videogen"><div id="videogenBox"></div></section>
+  <section class="page" id="p-loop"><div id="loopBox"></div></section>
+  <section class="page" id="p-refsheet"><div id="refsheetBox"></div></section>
+  <section class="page" id="p-fashion"><div id="fashionBox"></div></section>
 
   <!-- 작업함 -->
   <section class="page" id="p-library"><div id="libBox"></div></section>
@@ -220,7 +226,6 @@ details summary{cursor:pointer;font-weight:700}
     <div class="card"><h3>상품·가격표</h3><div id="prodTable"></div>
       <div style="margin-top:8px"><button class="btn" id="addProd">＋ 상품 추가</button></div></div>
     <div class="card" id="aiSettings"></div>
-    <div class="card" id="toolsCard"></div>
     <div class="card"><h3>백업</h3>
       <p class="muted" style="margin-top:-4px">휴대폰을 바꾸거나 PC로 옮길 때 씁니다. 백업 파일에 고객 정보가 들어 있으니 아무 데나 올리지 마세요.</p>
       <div class="row"><button class="btn" id="exportBtn">⬇ 백업 내보내기</button>
@@ -240,7 +245,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-10';
+const APP_VERSION = '2026.11.23-11';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -895,27 +900,32 @@ $('#importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; t
 $('#resetBtn').onclick=()=>{ if(confirm('주문·기획안·설정을 모두 지울까요? 되돌릴 수 없어요. 먼저 백업을 권해요.') && confirm('정말 지울까요?')){ DB=defaults(); save(); applyTheme(); renderAll(); toast('모두 지웠어요'); } };
 
 /* ---------- 화면 이동 ---------- */
-const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['aichat','💬','AI 대화 연결'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드']];
+const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['aichat','💬','AI 대화 연결'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드'],['promptp','✏️','프롬프트'],['imagegen','🖼','이미지 생성'],['videogen','🎬','영상 제작'],['loop','🔁','루프 영상'],['refsheet','🧾','레퍼런스 시트'],['fashion','👗','패션 AI']];
 // 왼쪽 메뉴: 묶음(섹션)별로 / to = 그 화면 안의 칸으로 바로 이동
 const SIDE=[
   {k:'home',i:'🏠',l:'홈'},
   {k:'library',i:'🗂',l:'작업함'},
+  {sec:'자동 제작'},
+  {k:'plan',i:'📝',l:'기획 만들기',to:'top'},
+  {k:'plan',i:'🤖',l:'영상 자동 만들기',to:'autoCard'},
+  {k:'plan',i:'🎤',l:'AI 진행자',to:'presCard'},
   {sec:'영상 만들기'},
   {k:'plan',i:'🔍',l:'레퍼런스 분석',to:'refCard'},
-  {k:'plan',i:'📝',l:'기획 · 프롬프트',to:'top'},
-  {k:'plan',i:'🤖',l:'영상 자동 만들기',to:'autoCard'},
-  {k:'plan',i:'🎤',l:'AI 진행자',to:'presCard',dot:1},
-  {k:'studio',i:'🎛',l:'스튜디오 (영상 노드)',dot:1},
-  {k:'plan',i:'🔁',l:'루프 영상',to:'autoCard'},
-  {k:'library',i:'📌',l:'기준 사진 · 진행자',to:'top'},
+  {k:'promptp',i:'✏️',l:'프롬프트',dot:1},
+  {k:'imagegen',i:'🖼',l:'이미지 생성',dot:1},
+  {k:'videogen',i:'🎬',l:'영상 제작',dot:1},
+  {k:'loop',i:'🔁',l:'루프 영상',dot:1},
+  {k:'studio',i:'🎛',l:'스튜디오'},
+  {k:'refsheet',i:'🧾',l:'레퍼런스 시트',dot:1},
+  {k:'fashion',i:'👗',l:'패션 AI',dot:1},
   {sec:'사업 관리'},
   {k:'orders',i:'📋',l:'주문 · 견적서'},
   {k:'home',i:'📈',l:'매출 · 목표',to:'top'},
   {sec:'도구'},
-  {k:'aichat',i:'💬',l:'Claude 연결',arg:'claude',tool:'claude',dot:1},
-  {k:'aichat',i:'💬',l:'ChatGPT 연결',arg:'gpt',tool:'gpt',dot:1},
-  {k:'archive',i:'🗄',l:'레퍼런스 아카이브',tool:'archive',dot:1},
-  {k:'storyboard',i:'🧩',l:'스토리보드',tool:'storyboard',dot:1},
+  {k:'aichat',i:'💬',l:'Claude 연결',arg:'claude'},
+  {k:'aichat',i:'💬',l:'ChatGPT 연결',arg:'gpt'},
+  {k:'archive',i:'🗄',l:'레퍼런스 아카이브'},
+  {k:'storyboard',i:'🧩',l:'스토리보드'},
   {k:'settings',i:'🔌',l:'AI 연결',to:'aiSettings'},
   {k:'settings',i:'⚙️',l:'설정 · 백업'},
 ];
@@ -941,8 +951,7 @@ function renderNav(){
   $('#menuBtn').onclick=toggle; $('#navMenu').onclick=toggle; $('#backdrop').onclick=toggle;
 }
 function renderSide(){
-  const hidden=DB.settings.hiddenTools||[];
-  $('#sideItems').innerHTML=SIDE.map((x,n)=>x.sec?`<div class="sec">${x.sec}</div>`:(x.tool&&hidden.includes(x.tool))?'':`<button data-side="${n}" data-k="${x.k}"><span class="ic">${x.i}</span>${x.l}${x.dot?'<span class="dot"></span>':''}</button>`).join('');
+  $('#sideItems').innerHTML=SIDE.map((x,n)=>x.sec?`<div class="sec">${x.sec}</div>`:`<button data-side="${n}" data-k="${x.k}"><span class="ic">${x.i}</span>${x.l}${x.dot?'<span class="dot"></span>':''}</button>`).join('');
   document.querySelectorAll('#sidebar [data-side]').forEach(b=>b.onclick=()=>{
     const x=SIDE[Number(b.dataset.side)]; window.__sideArg=x.arg||''; go(x.k);
     document.querySelectorAll('#sidebar [data-side]').forEach(y=>y.classList.toggle('active', y===b));
@@ -1568,7 +1577,7 @@ function refView(R){
     <p style="margin:8px 0 2px"><b>자막</b> ${esc(R['자막_스타일']||'')} · <b>음악</b> ${esc(R['음악_분위기']||'')} · <b>속도</b> ${esc(R['편집_속도']||'')}</p>
     <p style="margin:8px 0 2px"><b>👍 잘된 이유</b></p><ul style="margin:0;padding-left:20px">${li(R['잘된_이유'])}</ul>
     <p style="margin:8px 0 2px"><b>💡 내 가게에 적용할 점</b></p><ul style="margin:0;padding-left:20px">${li(R['내_가게에_적용할_점'])}</ul>
-    <div class="row" style="margin-top:10px"><button class="btn primary" id="ref_apply">이 구조 참고해서 기획하기</button>${toolHidden('archive')?'':'<button class="btn" id="ref_arch">🗄 아카이브에 보관</button>'}</div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" id="ref_apply">이 구조 참고해서 기획하기</button><button class="btn" id="ref_arch">🗄 아카이브에 보관</button></div>
     <p class="muted" style="margin:6px 0 0">길이를 맞추고, 기획 결과와 'AI에게 보낼 프롬프트'에 이 분석이 참고로 들어가요.</p>`;
 }
 async function analyzeRef(file){
@@ -1966,7 +1975,7 @@ document.addEventListener('click', async e=>{
   const dl=e.target.closest('[data-ndel]'); if(dl){ const n=P.nodes[Number(dl.dataset.ndel)]; if(!confirm(`${nodeLabel(P,n)} 노드를 지울까요?`)) return; P.nodes.splice(Number(dl.dataset.ndel),1); P.nodes.forEach(x=>{ if(x.imgFrom===n.id) x.imgFrom=''; if(x.keepFrom===n.id) x.keepFrom=''; }); save(); renderStudio(); return; }
   const bg=e.target.closest('[data-nbig]'); if(bg){ bigEditor(P,Number(bg.dataset.nbig)); return; }
   const gn=e.target.closest('[data-ngen]'); if(gn){ const n=P.nodes[Number(gn.dataset.ngen)]; if(!(n.prompt||'').trim()){ toast('노드에 글(프롬프트)을 먼저 써 주세요'); return; } if(nodeCheck(n)) return; STU.busy=true; await nodeGen(P,n); STU.busy=false; renderStudio(); return; }
-  const pk=e.target.closest('[data-npick]'); if(pk){ const n=P.nodes[Number(pk.dataset.npick)]; const kinds=n.type==='video'?['video','final','loop']:['image','ref','presenter'];
+  const pk=e.target.closest('[data-npick]'); if(pk){ const n=P.nodes[Number(pk.dataset.npick)]; const kinds=n.type==='video'?['video','final','loop']:['image','ref','presenter','sheet','fashion'];
     const all=(await libAll()).filter(x=>kinds.includes(x.kind)); if(!all.length){ toast('작업함에 고를 것이 없어요'); return; } const urls=[];
     openSheet(`<h2>🗂 작업함에서 고르기<button class="btn sm" id="xBtn">닫기</button></h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">${all.map(x=>{ const u=URL.createObjectURL(x.blob); urls.push(u); return `<button class="scene" data-take="${x.id}" style="padding:6px;margin:0;background:var(--card);text-align:left">${n.type==='video'?`<video src="${u}#t=0.1" preload="metadata" muted style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px"></video>`:`<img src="${u}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px">`}<div style="font-size:12px"><b>${esc(x.project)}</b><br><span class="muted">${KIND_KO[x.kind]||x.kind}</span></div></button>`; }).join('')}</div>`);
     document.getElementById('xBtn').onclick=()=>{ closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); };
@@ -1988,10 +1997,7 @@ document.addEventListener('change', async e=>{
 
 /* =====================================================================
    🧰 도구: Claude 연결 · ChatGPT 연결 · 레퍼런스 아카이브 · 스토리보드
-   (쓰지 않으면 ⚙️ 설정 → 메뉴 정리에서 끄면 메뉴에서 빠짐)
    ===================================================================== */
-const TOOL_LIST=[['claude','💬 Claude 연결'],['gpt','💬 ChatGPT 연결'],['archive','🗄 레퍼런스 아카이브'],['storyboard','🧩 스토리보드']];
-function toolHidden(t){ return (DB.settings.hiddenTools||[]).includes(t); }
 
 /* ---------- 💬 AI 대화 연결 (Claude / ChatGPT) ----------
    지금 쓰는 Claude·ChatGPT 구독 그대로: 앱이 지시문을 만들어 그 사이트를 열고,
@@ -2034,7 +2040,7 @@ function renderAIChat(){
     <p class="muted" style="margin:6px 0 0">${name} 입력칸이 비어 있으면 <b>길게 눌러 붙여넣기</b> 하세요. (지시문은 이미 복사돼 있어요)</p>
     <label style="margin-top:14px">② ${name}가 준 답 붙여넣기</label><textarea id="aic_result" style="min-height:140px;font-size:14px" placeholder="${T.out==='nodes'?'[그림] … / [영상] … 형식의 답을 붙여넣기':T.out==='pres'?'[컷] … 형식의 답을 붙여넣기':'받은 답을 붙여넣으면 복사·보관할 수 있어요'}">${esc(AIC.result)}</textarea>
     <div class="row" style="margin-top:8px">${T.out==='nodes'?'<button class="btn primary" id="aic_nodes">🎛 스튜디오 노드로 만들기</button>':''}${T.out==='pres'?'<button class="btn primary" id="aic_pres">🎤 진행자 대본으로 넣기</button>':''}
-      ${toolHidden('archive')?'':'<button class="btn" id="aic_arch">🗄 아카이브에 보관</button>'}</div>
+      <button class="btn" id="aic_arch">🗄 아카이브에 보관</button></div>
     <div class="muted" id="aic_msg" style="margin-top:6px">${esc(AIC.msg)}</div></div>`;
 }
 function parseNodes(text){
@@ -2152,13 +2158,264 @@ document.addEventListener('click', async e=>{
     const S=studio(); const proj={id:uid(),name:`${P.v.name} 스토리보드`,ar:P.v.ar,look:AUTO?.look||'phone',nodes}; S.projects.unshift(proj); S.cur=proj.id; save(); toast(`노드 ${nodes.length}개를 만들었어요`); go('studio'); }
 });
 
-/* ---------- ⚙️ 메뉴 정리 (안 쓰는 도구 끄기) ---------- */
-function renderToolsCard(){
-  const box=document.getElementById('toolsCard'); if(!box) return;
-  box.innerHTML=`<h3>🧰 메뉴 정리</h3><p class="muted" style="margin-top:-4px">안 쓰는 도구는 체크를 끄면 왼쪽 메뉴에서 빠져요. 다시 켜면 돌아와요.</p>
-    ${TOOL_LIST.map(([k,l])=>`<label style="font-weight:600;margin:6px 0"><input type="checkbox" data-tooltog="${k}" style="width:auto"${toolHidden(k)?'':' checked'}> ${l}</label>`).join('')}`;
+
+/* =====================================================================
+   🎨 영상 만들기 도구: 프롬프트 · 이미지 생성 · 영상 제작 · 루프 영상 · 레퍼런스 시트 · 패션 AI
+   (나중에 안 쓰는 도구는 그 도구의 묶음(---------- 표시)을 통째로 지우고, SIDE·PAGES·HTML 칸도 지움)
+   ===================================================================== */
+KIND_KO.sheet='레퍼런스 시트'; KIND_KO.fashion='패션 AI';
+let HANDOFF=null; // 다른 화면으로 그림 넘기기
+const realTail = look => `${(REAL_LOOK[look]||REAL_LOOK.phone).img} ${REAL_CORE.replace('inside a real, ordinary Korean shop today','in a real place today')} Any people are original fictional people, not resembling real celebrities. Absolutely no text, letters, logos or watermarks.`;
+async function nbImage(parts, ar, size){
+  const j=await gpost(`https://generativelanguage.googleapis.com/v1/models/${aiCfg().imageModel}:generateContent`,{contents:[{parts}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:ar,imageSize:size||'2K'}}});
+  const p=(j.candidates?.[0]?.content?.parts||[]).find(x=>x.inlineData||x.inline_data); if(!p) throw new Error(friendlyError(200,j.candidates?.[0]?.finishReason||'그림이 오지 않았어요'));
+  const d=p.inlineData||p.inline_data; const mime=d.mimeType||d.mime_type||'image/png'; return withUrl({b64:d.data,mime,blob:b64ToBlob(d.data,mime)});
 }
-document.addEventListener('change', e=>{ const k=e.target.dataset?.tooltog; if(!k) return; const h=new Set(DB.settings.hiddenTools||[]); e.target.checked?h.delete(k):h.add(k); DB.settings.hiddenTools=[...h]; save(); renderSide(); toast(e.target.checked?'메뉴에 넣었어요':'메뉴에서 뺐어요'); });
+async function omniVideo(img, text, ar, dur, onWait){
+  const input=[]; if(img) input.push({type:'image',data:img.b64||await blobToB64(img.blob),mime_type:img.mime||img.blob.type});
+  input.push({type:'text',text});
+  let j=await gpost('https://generativelanguage.googleapis.com/v1beta/interactions',{model:aiCfg().videoModel,input,response_format:{type:'video',aspect_ratio:ar==='16:9'?'16:9':'9:16',duration:Math.max(3,Math.min(15,dur))+'s',resolution:'720p'}},true); const t0=Date.now();
+  while(j.status && j.status!=='completed'){
+    if(/fail|cancel/i.test(j.status)) throw new Error('영상 만들기가 실패했어요 ('+j.status+')');
+    if(Date.now()-t0>10*60*1000) throw new Error('영상이 너무 오래 걸려요');
+    onWait&&onWait(Math.round((Date.now()-t0)/1000)); await sleep(8000);
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${j.id}?key=${encodeURIComponent(getKey())}`); j=await r.json(); if(!r.ok) throw new Error(friendlyError(r.status,j.error?.message));
+  }
+  const out=(j.steps||[]).filter(s=>s.type==='model_output').flatMap(s=>s.content||[]).find(c=>c.type==='video'); if(!out?.data) throw new Error('영상이 오지 않았어요');
+  return withUrl({blob:b64ToBlob(out.data,out.mime_type||'video/mp4')});
+}
+async function pickFromLib(kinds, title, cb){
+  const all=(await libAll()).filter(x=>kinds.includes(x.kind)&&x.blob).sort((a,b)=>b.created.localeCompare(a.created)); if(!all.length){ toast('작업함에 고를 것이 없어요'); return; }
+  const urls=[]; openSheet(`<h2>🗂 ${esc(title)}<button class="btn sm" id="xBtn">닫기</button></h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">${all.map(x=>{ const u=URL.createObjectURL(x.blob); urls.push(u); const v=(x.mime||'').startsWith('video'); return `<button class="scene" data-lp="${x.id}" style="padding:6px;margin:0;background:var(--card);text-align:left">${v?`<video src="${u}#t=0.1" preload="metadata" muted style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px"></video>`:`<img src="${u}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px">`}<div style="font-size:12px"><b>${esc(x.project)}</b><br><span class="muted">${KIND_KO[x.kind]||x.kind}</span></div></button>`; }).join('')}</div>`);
+  const close=()=>{ closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); };
+  document.getElementById('xBtn').onclick=close;
+  document.getElementById('sheet').querySelectorAll('[data-lp]').forEach(b=>b.onclick=async()=>{ const x=all.find(y=>y.id===b.dataset.lp); close(); const m=withUrl({blob:x.blob,mime:x.mime||x.blob.type}); if(!(x.mime||'').startsWith('video')) m.b64=await blobToB64(x.blob); cb(m,(x.mime||'').startsWith('video')); });
+}
+async function fileToMedia(f){ const isV=f.type.startsWith('video/'); const b=isV?f:await shrinkImage(f); const m=withUrl({blob:b,mime:b.type||f.type}); if(!isV) m.b64=await blobToB64(b); return [m,isV]; }
+const needKey = () => getKey() ? '' : '<div class="warnbox">⚙️ 설정 → AI 연결에 구글 API 키를 넣어야 만들 수 있어요.</div>';
+const ratioChips = (cur, attr) => ['9:16','16:9','1:1','4:5'].map(r=>`<button class="chip${cur===r?' on':''}" data-${attr}="${r}">${r}</button>`).join('');
+const lookChips = (cur, attr) => Object.keys(REAL_LOOK).map(k=>`<button class="chip${cur===k?' on':''}" data-${attr}="${k}">${k==='phone'?'📱 휴대폰':'📷 광고'}</button>`).join('');
+const mediaBox = (m, isV, ratio) => m ? (isV?`<video src="${m.url}" controls playsinline style="width:100%;max-width:320px;aspect-ratio:${ratio};object-fit:cover;border-radius:10px;background:#000"></video>`:`<img src="${m.url}" style="width:100%;max-width:320px;aspect-ratio:${ratio};object-fit:cover;border-radius:10px">`) : '';
+
+/* ---------- ✏️ 프롬프트 만들기 ---------- */
+const PB={what:'', kind:'image', ind:'cafe', look:'phone', cam:'', light:'', comp:'', out:'', busy:false};
+const PB_OPT={
+  cam:{'천천히 다가가기':'slow push-in','주위를 돌기':'slow orbit around the subject','옆으로 흐르기':'slow lateral tracking shot','위에서 내려다보기':'top-down overhead shot','손에 들고 찍기':'handheld, slight natural shake','고정':'static locked-off shot'},
+  light:{'따뜻한 조명':'warm tungsten lighting','자연광 창가':'soft natural window light','해 질 녘':'golden hour sunlight','밤 네온':'night ambience with neon reflections','밝고 깨끗한':'bright clean even lighting'},
+  comp:{'아주 가까이':'extreme close-up','상반신':'medium shot, waist-up','전체 공간':'wide establishing shot','눈높이':'eye-level angle','아래에서 위로':'low angle'},
+};
+function pbBuild(){
+  const add=k=>PB[k]?PB_OPT[k][PB[k]]:''; const en=[add('comp'),add('cam'),add('light')].filter(Boolean).join(', ');
+  const ko=[PB.comp,PB.cam,PB.light].filter(Boolean).join(', ');
+  if(PB.kind==='image') return `${PB.what}${ko?` (${ko})`:''}\n\n[영어 보조] ${en}. ${realTail(PB.look)}`;
+  return `${PB.what}${ko?` (${ko})`:''}. 대사가 있으면 "큰따옴표" 안에.\n\n[영어 보조] ${en}. Make it look like real footage ${(REAL_LOOK[PB.look]||REAL_LOOK.phone).vid}; physically plausible natural motion, no morphing, no on-screen text.`;
+}
+function renderPromptPage(){
+  const box=document.getElementById('promptBox'); if(!box) return;
+  const chips=k=>Object.keys(PB_OPT[k]).map(x=>`<button class="chip${PB[k]===x?' on':''}" data-pbo="${k}" data-v="${x}">${x}</button>`).join('');
+  box.innerHTML=`<div class="card"><h3>✏️ 프롬프트 만들기</h3><p class="muted" style="margin-top:-4px">만들고 싶은 장면을 <b>한글로</b> 쓰고 버튼만 고르면, 사실적인 결과가 나오는 지시문(프롬프트)을 만들어 드려요. 바로 이미지 생성·영상 제작·스튜디오로 보낼 수 있어요.</p>
+    <div class="chips"><button class="chip${PB.kind==='image'?' on':''}" data-pbk="image">🖼 그림용</button><button class="chip${PB.kind==='video'?' on':''}" data-pbk="video">🎬 영상용</button></div>
+    <label style="margin-top:10px">무엇을 (한글로 자세히)</label><textarea id="pb_what" placeholder="예: 벚꽃 장식 아래 바 좌석에서 하이볼로 건배하는 20대 커플">${esc(PB.what)}</textarea>
+    <label style="margin-top:8px">구도</label><div class="chips">${chips('comp')}</div>
+    <label style="margin-top:8px">카메라</label><div class="chips">${chips('cam')}</div>
+    <label style="margin-top:8px">조명</label><div class="chips">${chips('light')}</div>
+    <label style="margin-top:8px">느낌</label><div class="chips">${lookChips(PB.look,'pbl')}</div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" id="pb_make">✨ 프롬프트 만들기</button><button class="btn" id="pb_ai"${getKey()?'':' disabled'}>🤖 AI로 더 다듬기</button></div></div>
+    ${PB.out?`<div class="card"><h3>결과</h3><textarea id="pb_out" style="min-height:160px;font-size:14px">${esc(PB.out)}</textarea>
+      <div class="row" style="margin-top:8px"><button class="btn" id="pb_copy">복사</button><button class="btn primary" id="pb_toimg">🖼 이미지 생성으로</button><button class="btn" id="pb_tovid">🎬 영상 제작으로</button><button class="btn" id="pb_tonode">🎛 스튜디오 노드로</button></div></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#promptBox')) return; const id=e.target.id; const w=document.getElementById('pb_what'); if(w) PB.what=w.value.trim();
+  const k=e.target.closest('[data-pbk]'); if(k){ PB.kind=k.dataset.pbk; renderPromptPage(); return; }
+  const o=e.target.closest('[data-pbo]'); if(o){ PB[o.dataset.pbo]=PB[o.dataset.pbo]===o.dataset.v?'':o.dataset.v; renderPromptPage(); return; }
+  const l=e.target.closest('[data-pbl]'); if(l){ PB.look=l.dataset.pbl; renderPromptPage(); return; }
+  if(id==='pb_make'){ if(!PB.what){ toast('무엇을 만들지 먼저 써 주세요'); return; } PB.out=pbBuild(); renderPromptPage(); return; }
+  if(id==='pb_ai'){ if(!PB.what){ toast('무엇을 만들지 먼저 써 주세요'); return; } e.target.disabled=true; e.target.textContent='다듬는 중…';
+    try{ const j=await gpost(`https://generativelanguage.googleapis.com/v1beta/models/${await pickTextModel()}:generateContent`,{contents:[{parts:[{text:`AI ${PB.kind==='image'?'이미지':'영상'} 생성용 프롬프트를 만들어 줘. 실제로 찍은 것처럼 아주 사실적으로. 실존 유명인·브랜드 로고·글자는 넣지 않기.\n장면: ${PB.what}\n선택: ${[PB.comp,PB.cam,PB.light].filter(Boolean).join(', ')||'없음'} / 느낌: ${PB.look==='phone'?'휴대폰으로 찍은 릴스':'광고 사진'}\n\n형식:\n[한글] (자세한 한국어 프롬프트, 대사는 "큰따옴표")\n[영어] (같은 내용의 자세한 영어 프롬프트)`}]}]});
+      PB.out=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim()||pbBuild(); }catch(err){ toast('❌ '+err.message); PB.out=PB.out||pbBuild(); }
+    renderPromptPage(); return; }
+  const out=()=>document.getElementById('pb_out')?.value||PB.out;
+  if(id==='pb_copy'){ copy(out()); return; }
+  if(id==='pb_toimg'){ IG.prompt=out(); go('imagegen'); return; }
+  if(id==='pb_tovid'){ VG.prompt=out(); go('videogen'); return; }
+  if(id==='pb_tonode'){ const P=curProj(); P.nodes.push({id:uid(),type:PB.kind,prompt:out(),dur:6}); save(); toast('스튜디오에 노드를 넣었어요'); go('studio'); }
+});
+
+/* ---------- 🖼 이미지 생성 ---------- */
+const IG={prompt:'', ar:'9:16', look:'phone', count:2, refs:[], results:[], busy:false};
+function renderImageGen(){
+  const box=document.getElementById('imagegenBox'); if(!box) return; const ratio=IG.ar.replace(':','/');
+  box.innerHTML=`<div class="card"><h3>🖼 이미지 생성</h3>${needKey()}
+    <label>무엇을 그릴까요 (한글 OK)</label><textarea id="ig_prompt" style="min-height:110px" placeholder="예: 숯불 위에서 익어 가는 꼬치, 연기와 불꽃, 어두운 배경">${esc(IG.prompt)}</textarea>
+    <label style="margin-top:8px">비율</label><div class="chips">${ratioChips(IG.ar,'igar')}</div>
+    <label style="margin-top:8px">느낌</label><div class="chips">${lookChips(IG.look,'iglook')}</div>
+    <label style="margin-top:8px">몇 장</label><div class="chips">${[1,2,4].map(n=>`<button class="chip${IG.count===n?' on':''}" data-igc="${n}">${n}장</button>`).join('')}</div>
+    <label style="margin-top:8px">참고 사진 (같은 인물·제품·장소 유지 · 최대 6장)</label>
+    <div class="row" style="gap:6px">${IG.refs.map((r,i)=>`<div style="position:relative"><img src="${r.url}" style="width:56px;height:56px;object-fit:cover;border-radius:8px"><button class="btn sm" data-igrdel="${i}" style="position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:99px">×</button></div>`).join('')}
+      ${IG.refs.length<6?`<label class="btn sm" style="margin:0;color:var(--ink)">＋ 사진<input type="file" accept="image/*" multiple id="ig_ref" hidden></label><button class="btn sm" id="ig_refpick">작업함(시트·진행자)</button>`:''}</div>
+    <p class="muted">예상 비용: 약 ${Math.round(IG.count*PRICE.image*aiCfg().won)}원</p>
+    <button class="btn primary big" id="ig_go"${IG.busy||!getKey()?' disabled':''}>${IG.busy?'⏳ 그리는 중…':'✨ 이미지 만들기'}</button></div>
+    ${IG.results.length?`<div class="card"><h3>결과 <span class="muted" style="font-weight:400">· 🗂 작업함에 저장됨</span></h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${IG.results.map((r,i)=>`<div class="scene" style="margin:0;padding:6px"><img src="${r.url}" style="width:100%;aspect-ratio:${ratio};object-fit:cover;border-radius:8px">
+      <div class="row" style="gap:4px;margin-top:4px"><a class="btn sm" href="${r.url}" download="이미지_${i+1}.png" style="text-decoration:none">저장</a><button class="btn sm primary" data-igvid="${i}">🎬 영상으로</button><button class="btn sm" data-igloop="${i}">🔁</button></div></div>`).join('')}</div></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#imagegenBox')) return; const id=e.target.id; const t=document.getElementById('ig_prompt'); if(t) IG.prompt=t.value.trim();
+  const a=e.target.closest('[data-igar]'); if(a){ IG.ar=a.dataset.igar; renderImageGen(); return; }
+  const l=e.target.closest('[data-iglook]'); if(l){ IG.look=l.dataset.iglook; renderImageGen(); return; }
+  const c=e.target.closest('[data-igc]'); if(c){ IG.count=Number(c.dataset.igc); renderImageGen(); return; }
+  const rd=e.target.closest('[data-igrdel]'); if(rd){ IG.refs.splice(Number(rd.dataset.igrdel),1); renderImageGen(); return; }
+  if(id==='ig_refpick'){ pickFromLib(['sheet','presenter','ref','image','fashion'],'참고 사진 고르기',m=>{ IG.refs.push(m); renderImageGen(); }); return; }
+  if(id==='ig_go'){ if(!IG.prompt){ toast('무엇을 그릴지 써 주세요'); return; } if(CELEB_RE.test(IG.prompt)){ toast('🚫 실존 인물(유명인) 이름은 쓸 수 없어요'); return; }
+    IG.busy=true; renderImageGen(); const parts=[...IG.refs.map(r=>({inline_data:{mime_type:r.mime,data:r.b64}})),{text:`${IG.refs.length?'Keep the person/product/place in the attached reference image(s) exactly the same (identical face, design, colors). ':''}${IG.prompt}\n\n${realTail(IG.look)}`}];
+    for(let i=0;i<IG.count;i++){ try{ const r=await nbImage(parts,IG.ar); IG.results.unshift(r); saveAsset('이미지 생성','image',r.blob,{}); renderImageGen(); IG.busy=true; }catch(err){ toast('❌ '+err.message); break; } }
+    IG.busy=false; renderImageGen(); return; }
+  const v=e.target.closest('[data-igvid]'); if(v){ VG.img=IG.results[Number(v.dataset.igvid)]; VG.ar=IG.ar==='16:9'?'16:9':'9:16'; go('videogen'); return; }
+  const lp=e.target.closest('[data-igloop]'); if(lp){ LP.media=IG.results[Number(lp.dataset.igloop)]; LP.isV=false; LP.ar=IG.ar; go('loop'); }
+});
+document.addEventListener('change', async e=>{ if(e.target.id==='ig_ref'){ for(const f of [...e.target.files].slice(0,6-IG.refs.length)){ const [m]=await fileToMedia(f); IG.refs.push(m); } renderImageGen(); } });
+
+/* ---------- 🎬 영상 제작 (그림 1장 → 움직이는 영상) ---------- */
+const VG={img:null, prompt:'', ar:'9:16', look:'phone', dur:6, result:null, busy:false, msg:''};
+function renderVideoGen(){
+  const box=document.getElementById('videogenBox'); if(!box) return; const ratio=VG.ar.replace(':','/'); const q=quotes(VG.prompt);
+  const warn=CELEB_RE.test(VG.prompt)?'🚫 실존 인물(유명인) 이름은 쓸 수 없어요.':q.some(x=>REVIEW_RE.test(x))?'🚫 대사가 손님 후기처럼 들려요. 가상 인물의 후기는 거짓 광고가 돼요.':'';
+  box.innerHTML=`<div class="card"><h3>🎬 영상 제작</h3>${needKey()}
+    <p class="muted" style="margin-top:-4px">그림(또는 실제 사진) 1장을 넣고 <b>어떻게 움직일지</b> 한글로 쓰면 진짜 영상이 돼요. "큰따옴표" 안의 말은 인물이 한국어로 말해요. 그림 없이 글로만도 돼요.</p>
+    <label>시작 그림 (선택)</label><div class="row" style="align-items:flex-start;gap:10px">${VG.img?`<img src="${VG.img.url}" style="width:110px;aspect-ratio:${ratio};object-fit:cover;border-radius:8px">`:'<div class="muted">없음 (글로만)</div>'}
+      <div class="row" style="gap:4px"><label class="btn sm" style="margin:0;color:var(--ink)">내 사진<input type="file" accept="image/*" id="vg_file" hidden></label><button class="btn sm" id="vg_pick">작업함</button>${VG.img?'<button class="btn sm danger" id="vg_clear">빼기</button>':''}</div></div>
+    <label style="margin-top:8px">움직임·대사 (한글 OK)</label><textarea id="vg_prompt" style="min-height:110px" placeholder='예: 직원이 카메라를 보며 웃으며 "어서 오세요, 사쿠라미치입니다!"라고 말한다. 카메라가 천천히 다가간다.'>${esc(VG.prompt)}</textarea>
+    <div class="row" style="gap:4px;margin-top:4px">${SNIPPETS.map((s,k)=>`<button class="chip" data-vgsn="${k}" style="font-size:12px">${s[0]}</button>`).join('')}</div>
+    <label style="margin-top:8px">비율</label><div class="chips">${['9:16','16:9'].map(r=>`<button class="chip${VG.ar===r?' on':''}" data-vgar="${r}">${r}</button>`).join('')}</div>
+    <label style="margin-top:8px">느낌</label><div class="chips">${lookChips(VG.look,'vglook')}</div>
+    <label style="margin-top:8px">길이</label><div class="chips">${[3,5,8,10,15].map(d=>`<button class="chip${VG.dur===d?' on':''}" data-vgd="${d}">${d}초</button>`).join('')}</div>
+    ${warn?`<div class="warnbox" style="margin-top:8px">${warn}</div>`:''}
+    <p class="muted">예상 비용: 약 ${Math.round(VG.dur*PRICE.videoPerSec*aiCfg().won).toLocaleString('ko-KR')}원 · 1~3분 걸려요</p>
+    <button class="btn primary big" id="vg_go"${VG.busy||warn||!getKey()?' disabled':''}>${VG.busy?'⏳ 영상 만드는 중…':'🎬 영상 만들기'}</button><div class="muted" id="vg_msg" style="margin-top:6px">${esc(VG.msg)}</div></div>
+    ${VG.result?`<div class="card"><h3>결과 <span class="muted" style="font-weight:400">· 🗂 작업함에 저장됨</span></h3>${mediaBox(VG.result,true,ratio)}<div class="row" style="margin-top:8px"><a class="btn primary" href="${VG.result.url}" download="영상_${today()}.mp4" style="text-decoration:none">⬇ 저장</a><button class="btn" id="vg_loop">🔁 루프로</button><button class="btn" id="vg_node">🎛 스튜디오에 넣기</button></div></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#videogenBox')) return; const id=e.target.id; const t=document.getElementById('vg_prompt'); if(t) VG.prompt=t.value.trim();
+  const a=e.target.closest('[data-vgar]'); if(a){ VG.ar=a.dataset.vgar; renderVideoGen(); return; }
+  const l=e.target.closest('[data-vglook]'); if(l){ VG.look=l.dataset.vglook; renderVideoGen(); return; }
+  const d=e.target.closest('[data-vgd]'); if(d){ VG.dur=Number(d.dataset.vgd); renderVideoGen(); return; }
+  const sn=e.target.closest('[data-vgsn]'); if(sn){ VG.prompt=(VG.prompt?VG.prompt+' ':'')+SNIPPETS[Number(sn.dataset.vgsn)][1]; renderVideoGen(); return; }
+  if(id==='vg_pick'){ pickFromLib(['image','presenter','sheet','fashion','ref'],'시작 그림 고르기',m=>{ VG.img=m; renderVideoGen(); }); return; }
+  if(id==='vg_clear'){ VG.img=null; renderVideoGen(); return; }
+  if(id==='vg_go'){ if(!VG.prompt){ toast('움직임을 써 주세요'); return; } VG.busy=true; VG.msg=''; renderVideoGen();
+    try{ VG.result=await omniVideo(VG.img, `${VG.prompt}\n\n(${VG.img?'Animate the attached image; keep faces, outfits, products and place exactly the same. ':''}Make it look like real footage ${(REAL_LOOK[VG.look]||REAL_LOOK.phone).vid}. Physically plausible natural motion, no morphing. Lines inside quotation marks are spoken aloud in natural Korean with accurate lip sync. No on-screen text or subtitles, no background music.)`, VG.ar, VG.dur, s=>{ const m=document.getElementById('vg_msg'); if(m) m.textContent=`만드는 중… ${s}초`; });
+      saveAsset('영상 제작','video',VG.result.blob,{sec:VG.dur}); }catch(err){ VG.msg='❌ '+err.message; }
+    VG.busy=false; renderVideoGen(); return; }
+  if(id==='vg_loop' && VG.result){ LP.media=VG.result; LP.isV=true; LP.ar=VG.ar; go('loop'); return; }
+  if(id==='vg_node' && VG.result){ const P=curProj(); const aid=await saveAsset(P.name,'video',VG.result.blob,{}); P.nodes.push({id:uid(),type:'video',prompt:VG.prompt,dur:VG.dur,assetId:aid,status:'완료'}); save(); toast('스튜디오에 넣었어요'); go('studio'); }
+});
+document.addEventListener('change', async e=>{ if(e.target.id==='vg_file' && e.target.files[0]){ const [m]=await fileToMedia(e.target.files[0]); VG.img=m; renderVideoGen(); } });
+
+/* ---------- 🔁 루프 영상 (그림·영상 → 끝없이 반복되는 영상) ---------- */
+const LP={media:null, isV:false, ar:'9:16', sec:10, result:null, busy:false};
+async function loopRecord(media, isV, ar, secWanted){
+  const el=await loadMedia(isV?{clip:media}:{img:media}); const [W,H]=canvasSize(ar);
+  let total=secWanted, first=null;
+  if(isV){ total=Math.max(3,Math.min(15,isFinite(el.duration)&&el.duration>0?el.duration:8)); first=document.createElement('canvas'); first.width=W; first.height=H; drawCover(first.getContext('2d'),el,W,H,1,0,0); el.loop=true; try{ el.currentTime=0; await el.play(); }catch(e){} }
+  const res=await recordCanvas(W,H,total,(g,now)=>{ g.globalAlpha=1; g.fillStyle='#000'; g.fillRect(0,0,W,H);
+    if(isV){ drawCover(g,el,W,H,1,0,0); const f=0.8; if(now>total-f){ g.globalAlpha=(now-(total-f))/f; g.drawImage(first,0,0); g.globalAlpha=1; } }
+    else { const ph=(now/total)*Math.PI*2; drawCover(g,el,W,H,1.06+0.06*Math.sin(ph-Math.PI/2),0.35*Math.sin(ph),0.2*Math.sin(ph*2)/2); } });
+  if(isV) el.pause(); return {...res, sec:Math.round(total)};
+}
+function renderLoopPage(){
+  const box=document.getElementById('loopBox'); if(!box) return; const ratio=LP.ar.replace(':','/');
+  box.innerHTML=`<div class="card"><h3>🔁 루프 영상</h3><p class="muted" style="margin-top:-4px">그림이나 짧은 영상을 넣으면 <b>끝과 처음이 자연스럽게 이어지는</b> 반복 영상을 만들어요. 매장 TV·키오스크·인스타 배경용. (AI 비용 없음)</p>
+    <div class="row" style="align-items:flex-start;gap:10px">${mediaBox(LP.media,LP.isV,ratio)||'<div class="muted">아직 없음</div>'}</div>
+    <div class="row" style="margin-top:8px"><label class="btn" style="margin:0;color:var(--ink)">내 파일<input type="file" accept="image/*,video/*" id="lp_file" hidden></label><button class="btn" id="lp_pick">작업함</button></div>
+    <label style="margin-top:8px">비율</label><div class="chips">${ratioChips(LP.ar,'lpar')}</div>
+    ${LP.isV?'':`<label style="margin-top:8px">길이 (그림일 때)</label><div class="chips">${[6,10,15,20].map(s=>`<button class="chip${LP.sec===s?' on':''}" data-lps="${s}">${s}초</button>`).join('')}</div>`}
+    <button class="btn primary big" id="lp_go" style="margin-top:10px"${LP.busy||!LP.media?' disabled':''}>${LP.busy?'⏳ 만드는 중… (영상 길이만큼)':'🔁 루프 영상 만들기'}</button></div>
+    ${LP.result?`<div class="card"><h3>결과 (${LP.result.sec}초) <span class="muted" style="font-weight:400">· 🗂 작업함에 저장됨</span></h3><video src="${LP.result.url}" controls loop autoplay muted playsinline style="width:100%;max-width:320px;aspect-ratio:${ratio};border-radius:10px;background:#000"></video>
+      <a class="btn primary" href="${LP.result.url}" download="루프_${today()}.${LP.result.ext}" style="display:block;text-align:center;text-decoration:none;margin-top:8px">⬇ 저장</a><p class="muted">매장 TV에서 USB로 틀 때 '반복 재생'을 켜 주세요.</p></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#loopBox')) return; const id=e.target.id;
+  const a=e.target.closest('[data-lpar]'); if(a){ LP.ar=a.dataset.lpar; renderLoopPage(); return; }
+  const s=e.target.closest('[data-lps]'); if(s){ LP.sec=Number(s.dataset.lps); renderLoopPage(); return; }
+  if(id==='lp_pick'){ pickFromLib(['image','video','final','presenter','sheet','fashion','ref'],'루프로 만들 것 고르기',(m,isV)=>{ LP.media=m; LP.isV=isV; renderLoopPage(); }); return; }
+  if(id==='lp_go' && LP.media){ if(!window.MediaRecorder){ toast('이 브라우저는 영상 저장을 못 해요'); return; } actx(); LP.busy=true; renderLoopPage();
+    try{ const r=await loopRecord(LP.media,LP.isV,LP.ar,LP.sec); if(LP.result) URL.revokeObjectURL(LP.result.url); LP.result={url:URL.createObjectURL(r.blob),ext:r.ext,sec:r.sec}; saveAsset('루프 영상','loop',r.blob,{sec:r.sec}); }catch(err){ toast('❌ '+err.message); }
+    LP.busy=false; renderLoopPage(); }
+});
+document.addEventListener('change', async e=>{ if(e.target.id==='lp_file' && e.target.files[0]){ const [m,isV]=await fileToMedia(e.target.files[0]); LP.media=m; LP.isV=isV; renderLoopPage(); } });
+
+/* ---------- 🧾 레퍼런스 시트 (같은 인물·제품·마스코트를 계속 똑같이) ---------- */
+const RS={type:'person', desc:'', src:null, name:'', result:null, busy:false};
+const RS_TYPES={person:['🙂 가상 인물','an original fictional person (not resembling any real celebrity)','character reference sheet: full body front view, 3/4 view, side view and back view in a row, plus a close-up row of 4 facial expressions (neutral, smile, surprised, talking), same outfit in every view'],
+  product:['📦 제품·메뉴','the product / dish','product reference sheet: front, back, left side, right side, top view and a 45-degree hero view, plus 2 close-up detail shots of materials/texture, identical design and colors in every view'],
+  mascot:['🐻 마스코트·캐릭터','an original mascot character','mascot model sheet: front, 3/4, side and back views, plus 4 poses (waving, pointing, thumbs up, jumping), identical design and colors in every view']};
+function renderRefSheet(){
+  const box=document.getElementById('refsheetBox'); if(!box) return;
+  box.innerHTML=`<div class="card"><h3>🧾 레퍼런스 시트</h3>${needKey()}
+    <p class="muted" style="margin-top:-4px">인물·제품·마스코트를 <b>여러 방향에서 본 한 장짜리 시트</b>로 만들어요. 이 시트를 이미지 생성·기준 사진에 넣으면 <b>모든 장면에서 같은 모습</b>으로 나와요. 월 구독 고객의 '가게 얼굴'을 만들 때 좋아요.</p>
+    <div class="chips">${Object.entries(RS_TYPES).map(([k,v])=>`<button class="chip${RS.type===k?' on':''}" data-rst="${k}">${v[0]}</button>`).join('')}</div>
+    <label style="margin-top:8px">이름 (작업함에 붙는 이름)</label><input id="rs_name" value="${esc(RS.name)}" placeholder="예: 사쿠라미치 직원 캐릭터">
+    <label style="margin-top:8px">설명 (한글 OK)</label><textarea id="rs_desc" placeholder="${RS.type==='person'?'예: 20대 여성, 단발머리, 남색 일본식 앞치마, 밝은 미소':RS.type==='product'?'예: 검은 석판 위 생고기 플레이트, 가운데 밥, 와사비':'예: 벚꽃잎 모양 귀여운 마스코트, 분홍색, 둥근 눈'}">${esc(RS.desc)}</textarea>
+    <label style="margin-top:8px">원본 사진 (선택 · 실제 제품 사진이면 더 정확)</label><div class="row" style="gap:6px">${RS.src?`<img src="${RS.src.url}" style="width:64px;height:64px;object-fit:cover;border-radius:8px"><button class="btn sm danger" id="rs_srcdel">빼기</button>`:''}<label class="btn sm" style="margin:0;color:var(--ink)">사진 넣기<input type="file" accept="image/*" id="rs_src" hidden></label></div>
+    ${RS.type==='person'&&RS.src?'<p class="muted">실제 사람 사진은 그 사람의 동의를 받은 경우에만 쓰세요.</p>':''}
+    <button class="btn primary big" id="rs_go" style="margin-top:10px"${RS.busy||!getKey()?' disabled':''}>${RS.busy?'⏳ 만드는 중…':'🧾 시트 만들기'}</button></div>
+    ${RS.result?`<div class="card"><h3>결과 <span class="muted" style="font-weight:400">· 🗂 작업함(레퍼런스 시트)에 저장됨</span></h3><img src="${RS.result.url}" style="width:100%;border-radius:10px">
+      <div class="row" style="margin-top:8px"><a class="btn" href="${RS.result.url}" download="레퍼런스시트_${esc(RS.name||'')}.png" style="text-decoration:none">⬇ 저장</a><button class="btn primary" id="rs_toimg">🖼 이 시트로 이미지 만들기</button></div></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#refsheetBox')) return; const id=e.target.id; const d=document.getElementById('rs_desc'); if(d) RS.desc=d.value.trim(); const n=document.getElementById('rs_name'); if(n) RS.name=n.value.trim();
+  const t=e.target.closest('[data-rst]'); if(t){ RS.type=t.dataset.rst; renderRefSheet(); return; }
+  if(id==='rs_srcdel'){ RS.src=null; renderRefSheet(); return; }
+  if(id==='rs_go'){ if(!RS.desc&&!RS.src){ toast('설명이나 사진을 넣어 주세요'); return; } if(CELEB_RE.test(RS.desc)){ toast('🚫 실존 인물(유명인)은 시트로 만들 수 없어요'); return; }
+    RS.busy=true; renderRefSheet(); const T=RS_TYPES[RS.type];
+    try{ const parts=[]; if(RS.src) parts.push({inline_data:{mime_type:RS.src.mime,data:RS.src.b64}});
+      parts.push({text:`Create a clean ${T[2]}. Subject: ${T[1]}${RS.desc?` — ${RS.desc}`:''}.${RS.src?' Base it exactly on the attached photo (same design, colors and details).':''} Plain light-gray studio background, even soft lighting, photorealistic, consistent proportions across all views, neatly arranged grid. No text, no labels, no logos.`});
+      RS.result=await nbImage(parts,'16:9'); saveAsset(RS.name||'레퍼런스 시트','sheet',RS.result.blob,{name:RS.name}); }catch(err){ toast('❌ '+err.message); }
+    RS.busy=false; renderRefSheet(); return; }
+  if(id==='rs_toimg' && RS.result){ RS.result.b64=RS.result.b64||await blobToB64(RS.result.blob); IG.refs=[RS.result]; go('imagegen'); }
+});
+document.addEventListener('change', async e=>{ if(e.target.id==='rs_src' && e.target.files[0]){ const [m]=await fileToMedia(e.target.files[0]); RS.src=m; renderRefSheet(); } });
+
+/* ---------- 👗 패션 AI (옷 사진 → 가상 모델 착용 사진·영상) ---------- */
+const FA={cloth:[], model:null, own:false, consent:false, gender:'여성', age:'20대', style:'데일리', bg:'스튜디오', pose:'정면', count:2, results:[], busy:false};
+const FA_OPT={gender:{여성:'woman',남성:'man'}, age:{'20대':'in her/his 20s','30대':'in her/his 30s','40대':'in her/his 40s','50대':'in her/his 50s'}, style:{데일리:'casual everyday styling',오피스:'smart office styling',스트릿:'street style',포멀:'elegant formal styling'},
+  bg:{스튜디오:'plain light studio background','가게 안':'inside a bright clothing boutique',거리:'a stylish city street','카페':'a cozy cafe'}, pose:{정면:'standing facing the camera','걷는 모습':'walking toward the camera naturally','옆모습':'standing in a 3/4 side angle','앉은 모습':'sitting casually'}};
+function renderFashion(){
+  const box=document.getElementById('fashionBox'); if(!box) return;
+  const ch=k=>Object.keys(FA_OPT[k]).map(x=>`<button class="chip${FA[k]===x?' on':''}" data-fao="${k}" data-v="${x}">${x}</button>`).join('');
+  box.innerHTML=`<div class="card"><h3>👗 패션 AI</h3>${needKey()}
+    <p class="muted" style="margin-top:-4px">옷·가방·신발 <b>상품 사진</b>을 넣으면 가상 모델이 입은 사진을 만들어요. 옷가게·쇼핑몰 사장님 고객에게 좋아요. (상세페이지·인스타용)</p>
+    <label>상품 사진 (최대 3장 · 앞/뒤/디테일)</label><div class="row" style="gap:6px">${FA.cloth.map((c,i)=>`<div style="position:relative"><img src="${c.url}" style="width:64px;height:64px;object-fit:cover;border-radius:8px"><button class="btn sm" data-facdel="${i}" style="position:absolute;top:-6px;right:-6px;padding:0 6px;border-radius:99px">×</button></div>`).join('')}${FA.cloth.length<3?'<label class="btn sm" style="margin:0;color:var(--ink);height:64px;display:flex;align-items:center">＋ 상품 사진<input type="file" accept="image/*" multiple id="fa_cloth" hidden></label>':''}</div>
+    <label style="margin-top:10px">모델</label><div class="row" style="gap:6px">${FA.model?`<img src="${FA.model.url}" style="width:64px;height:64px;object-fit:cover;border-radius:8px"><button class="btn sm danger" id="fa_mdel">빼기</button>`:'<span class="muted">가상 모델 (아래에서 고르기)</span>'}
+      <label class="btn sm" style="margin:0;color:var(--ink)">실제 모델 사진<input type="file" accept="image/*" id="fa_model" hidden></label><button class="btn sm" id="fa_mpick">작업함(진행자·시트)</button></div>
+    ${FA.own?`<label style="font-weight:600;margin-top:6px"><input type="checkbox" id="fa_consent" style="width:auto"${FA.consent?' checked':''}> 사진 속 모델에게 AI 사용 동의를 받았어요</label>`:''}
+    ${FA.model?'':`<label style="margin-top:8px">성별</label><div class="chips">${ch('gender')}</div><label style="margin-top:6px">나이대</label><div class="chips">${ch('age')}</div><label style="margin-top:6px">스타일</label><div class="chips">${ch('style')}</div>`}
+    <label style="margin-top:6px">배경</label><div class="chips">${ch('bg')}</div><label style="margin-top:6px">자세</label><div class="chips">${ch('pose')}</div>
+    <label style="margin-top:6px">몇 장</label><div class="chips">${[1,2,4].map(n=>`<button class="chip${FA.count===n?' on':''}" data-fac="${n}">${n}장</button>`).join('')}</div>
+    <p class="muted">AI 착용 사진은 실제 색·핏과 조금 다를 수 있어요. 판매용으로 쓸 땐 'AI 연출 이미지'라고 표시하고, 색은 실물 사진으로 꼭 확인시켜 주세요.</p>
+    <button class="btn primary big" id="fa_go"${FA.busy||!getKey()||!FA.cloth.length||(FA.own&&!FA.consent)?' disabled':''}>${FA.busy?'⏳ 만드는 중…':'👗 착용 사진 만들기'}</button></div>
+    ${FA.results.length?`<div class="card"><h3>결과 <span class="muted" style="font-weight:400">· 🗂 작업함에 저장됨</span></h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">${FA.results.map((r,i)=>`<div class="scene" style="margin:0;padding:6px"><img src="${r.url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:8px"><div class="row" style="gap:4px;margin-top:4px"><a class="btn sm" href="${r.url}" download="착용_${i+1}.png" style="text-decoration:none">저장</a><button class="btn sm primary" data-favid="${i}">🎬 걷는 영상</button></div></div>`).join('')}</div></div>`:''}`;
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#fashionBox')) return; const id=e.target.id;
+  const o=e.target.closest('[data-fao]'); if(o){ FA[o.dataset.fao]=o.dataset.v; renderFashion(); return; }
+  const c=e.target.closest('[data-fac]'); if(c){ FA.count=Number(c.dataset.fac); renderFashion(); return; }
+  const cd=e.target.closest('[data-facdel]'); if(cd){ FA.cloth.splice(Number(cd.dataset.facdel),1); renderFashion(); return; }
+  if(id==='fa_mdel'){ FA.model=null; FA.own=false; renderFashion(); return; }
+  if(id==='fa_mpick'){ pickFromLib(['presenter','sheet','fashion'],'모델 고르기',m=>{ FA.model=m; FA.own=false; renderFashion(); }); return; }
+  if(id==='fa_go'){ FA.busy=true; renderFashion();
+    const ageEN=FA_OPT.age[FA.age].replace('her/his',FA.gender==='여성'?'her':'his');
+    const who=FA.model?'the SAME model as in the last attached photo (identical face and body)':`an original fictional Korean ${FA_OPT.gender[FA.gender]} model ${ageEN}, ${FA_OPT.style[FA.style]}, not resembling any real celebrity`;
+    const parts=[...FA.cloth.map(c=>({inline_data:{mime_type:c.mime,data:c.b64}})), ...(FA.model?[{inline_data:{mime_type:FA.model.mime,data:FA.model.b64||await blobToB64(FA.model.blob)}}]:[]),
+      {text:`Fashion e-commerce photo. The first ${FA.cloth.length} attached image(s) show the exact garment/item for sale. Show ${who} wearing/using EXACTLY this item: keep its color, pattern, fabric texture, shape, length, buttons, logos-free details and fit faithful to the product photos. ${FA_OPT.pose[FA.pose]}, full body visible, ${FA_OPT.bg[FA.bg]}. Realistic fabric drape and natural wrinkles. ${realTail('ad')}`}];
+    for(let i=0;i<FA.count;i++){ try{ const r=await nbImage(parts,'3:4'); FA.results.unshift(r); saveAsset('패션 AI','fashion',r.blob,{}); renderFashion(); FA.busy=true; }catch(err){ toast('❌ '+err.message); break; } }
+    FA.busy=false; renderFashion(); return; }
+  const v=e.target.closest('[data-favid]'); if(v){ const r=FA.results[Number(v.dataset.favid)]; r.b64=r.b64||await blobToB64(r.blob); VG.img=r; VG.ar='9:16'; VG.prompt='모델이 카메라를 향해 자연스럽게 걸어오다가 멈춰서 옷이 잘 보이게 살짝 돈다. 옷감이 자연스럽게 움직인다.'; VG.dur=6; go('videogen'); }
+});
+document.addEventListener('change', async e=>{
+  if(e.target.id==='fa_cloth'){ for(const f of [...e.target.files].slice(0,3-FA.cloth.length)){ const [m]=await fileToMedia(f); FA.cloth.push(m); } renderFashion(); }
+  if(e.target.id==='fa_model' && e.target.files[0]){ const [m]=await fileToMedia(e.target.files[0]); FA.model=m; FA.own=true; FA.consent=false; renderFashion(); }
+  if(e.target.id==='fa_consent'){ FA.consent=e.target.checked; renderFashion(); }
+});
 
 /* ---------- 기획 결과에 붙이기 ---------- */
 const _renderPlan = renderPlan;
@@ -2204,12 +2461,12 @@ document.addEventListener('click', async e=>{
   if(id==='ai_reset'){ DB.settings.ai=Object.assign({},AI_DEFAULT); _textModel=null; save(); renderAISettings(); toast('처음 값으로 돌렸어요'); }
 });
 const _renderSettings = renderSettings;
-renderSettings = function(){ _renderSettings(); renderAISettings(); renderToolsCard(); };
+renderSettings = function(){ _renderSettings(); renderAISettings(); };
 renderAISettings(); renderRefCard();
-window.onPage = p => { if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard();
+window.onPage = p => { if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard(); if(p==='promptp') renderPromptPage(); if(p==='imagegen') renderImageGen(); if(p==='videogen') renderVideoGen(); if(p==='loop') renderLoopPage(); if(p==='refsheet') renderRefSheet(); if(p==='fashion') renderFashion();
   if(p==='aichat'){ if(window.__sideArg) AIC.target=window.__sideArg; renderAIChat(); }
   $('#pageTitle').textContent = p==='aichat' ? (AIC.target==='claude'?'Claude 연결':'ChatGPT 연결') : $('#pageTitle').textContent; };
-window.onPage(location.hash.slice(1)||'home'); renderToolsCard();
+window.onPage(location.hash.slice(1)||'home');
 </script>
 </body>
 </html>
