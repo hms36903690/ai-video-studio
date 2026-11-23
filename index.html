@@ -119,6 +119,12 @@ td,th{border-top:1px solid var(--line);padding:7px 4px;text-align:left;vertical-
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1e1b4b;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
 details summary{cursor:pointer;font-weight:700}
+.pset{border:1px solid var(--line);border-radius:12px;margin-bottom:6px;background:var(--card)}
+.pset>summary{padding:12px 14px;list-style:none;display:flex;align-items:center;gap:6px}
+.pset>summary::-webkit-details-marker{display:none}
+.pset>summary::after{content:'▾';margin-left:auto;color:var(--sub);transition:transform .15s}
+.pset[open]>summary::after{transform:rotate(180deg)}
+.pset .pbody{padding:0 14px 12px}
 @media print{
   body *{visibility:hidden}
   #printArea,#printArea *{visibility:visible}
@@ -244,7 +250,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-15';
+const APP_VERSION = '2026.11.23-16';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -1341,10 +1347,10 @@ async function renderStudio(){
 function openPromptSheet(target){ // target: 노드 번호 (없으면 새 노드로 추가)
   const P=curProj(); const mine=userSets();
   openSheet(`<h2>📚 프롬프트 열기${target!=null?` · ${nodeLabel(P,P.nodes[target])}에 넣기`:''}<button class="btn sm" id="xBtn">닫기</button></h2>
-    ${target==null?`<h3 style="font-size:15px">🎬 영상 세트 (새 프로젝트로 노드가 한 번에)</h3>${PROMPT_SETS.map(S=>`<div class="scene"><b>${esc(S.title)}</b><div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div><button class="btn sm primary" data-opset="${S.id}">이 세트로 만들기</button></div>`).join('')}`:''}
+    ${target==null?`<h3 style="font-size:15px">🎬 영상 세트 (새 프로젝트로 노드가 한 번에)</h3>${PROMPT_SETS.map(S=>`<details class="pset"><summary>${esc(S.title)}</summary><div class="pbody"><div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div>${S.cuts.map((c,i)=>`<div style="font-size:12px;margin-top:4px"><b>컷 ${i+1}</b> ${esc(c.sub)}</div>`).join('')}<button class="btn sm primary" data-opset="${S.id}" style="margin-top:8px">이 세트로 만들기</button></div></details>`).join('')}`:''}
     <h3 style="font-size:15px">💾 내가 저장한 프롬프트</h3>
-    ${mine.length?mine.map((m,i)=>`<div class="scene"><b>${esc(m.title)}</b> <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span><div class="out" style="font-size:13px;max-height:100px;overflow:auto">${esc(m.text)}</div>
-      <button class="btn sm primary" data-opmine="${i}">${target!=null?'이 노드에 넣기':'노드로 추가'}</button></div>`).join(''):'<div class="empty">아직 없어요. ✏️ 프롬프트 화면에서 만든 뒤 💾 모음에 저장하면 여기에 나와요.</div>'}
+    ${mine.length?mine.map((m,i)=>`<details class="pset"><summary>${esc(m.title)} <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span></summary><div class="pbody"><div class="out" style="font-size:13px">${esc(m.text)}</div>
+      <button class="btn sm primary" data-opmine="${i}">${target!=null?'이 노드에 넣기':'노드로 추가'}</button></div></details>`).join(''):'<div class="empty">아직 없어요. ✏️ 프롬프트 화면에서 만든 뒤 💾 모음에 저장하면 여기에 나와요.</div>'}
     <div class="row" style="margin-top:8px"><button class="btn" id="op_go">✏️ 프롬프트 화면에서 새로 만들기</button></div>`);
   const sh=document.getElementById('sheet');
   document.getElementById('xBtn').onclick=closeSheet;
@@ -1626,12 +1632,18 @@ function setText(S){ return `[${S.title}]\n${S.desc}\n\n주인공: ${S.anchor}\n
 function userSets(){ return DB.promptSaves=DB.promptSaves||[]; }
 function renderPromptSets(){
   const mine=userSets();
-  return `<div class="card"><h3>📚 프롬프트 모음</h3><p class="muted" style="margin-top:-4px">여러 컷짜리 영상 세트예요. <b>🎛 스튜디오로 만들기</b>를 누르면 그림·영상 노드가 한 번에 생기고, 그림 노드를 위에서부터 만들면 <b>같은 주인공</b>이 유지돼요.</p>
-    ${PROMPT_SETS.map(S=>`<div class="scene"><b>${esc(S.title)}</b><div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div>
-      <details><summary class="muted" style="font-size:13px">컷 ${S.cuts.length}개 보기</summary>${S.cuts.map((c,i)=>`<div style="font-size:13px;margin-top:6px"><b>컷 ${i+1}</b> · 자막 "${esc(c.sub)}"<br>🖼 ${esc(c.img.replace('{dog}','강아지').replace('{place}','편의점'))}<br>🎬 ${esc(c.vid)}</div>`).join('')}<p class="muted" style="font-size:12px">${esc(S.tip)}</p></details>
-      <div class="row" style="gap:4px;margin-top:6px"><button class="btn sm primary" data-psnode="${S.id}">🎛 스튜디오로 만들기</button><button class="btn sm" data-pscopy="${S.id}">복사</button></div></div>`).join('')}
-    ${mine.length?`<h3 style="font-size:15px;margin-top:12px">💾 내가 저장한 프롬프트</h3>${mine.map((m,i)=>`<div class="scene"><b>${esc(m.title)}</b> <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span><div class="out" style="font-size:13px;max-height:120px;overflow:auto">${esc(m.text)}</div>
-      <div class="row" style="gap:4px"><button class="btn sm" data-mycopy="${i}">복사</button><button class="btn sm" data-myuse="${i}">불러오기</button><button class="btn sm danger" data-mydel="${i}">삭제</button></div></div>`).join('')}`:''}</div>`;
+  // 제목만 보이고, 제목을 누르면 전체 내용이 펼쳐짐
+  const set=S=>`<details class="pset"><summary>${esc(S.title)}</summary><div class="pbody">
+      <div class="muted" style="font-size:13px;margin:4px 0">${esc(S.desc)}</div>
+      ${S.cuts.map((c,i)=>`<div style="font-size:13px;margin-top:6px"><b>컷 ${i+1}</b> · 자막 "${esc(c.sub)}"<br>🖼 ${esc(c.img.replace('{dog}','강아지').replace('{place}','편의점'))}<br>🎬 ${esc(c.vid)}</div>`).join('')}
+      <p class="muted" style="font-size:12px">${esc(S.tip)}</p>
+      <div class="row" style="gap:4px;margin-top:6px"><button class="btn sm primary" data-psnode="${S.id}">🎛 스튜디오로 만들기</button><button class="btn sm" data-pscopy="${S.id}">복사</button></div></div></details>`;
+  const my=(m,i)=>`<details class="pset"><summary>${esc(m.title)} <span class="tag">${m.kind==='video'?'영상용':'그림용'}</span></summary><div class="pbody">
+      <div class="out" style="font-size:13px">${esc(m.text)}</div>
+      <div class="row" style="gap:4px"><button class="btn sm" data-mycopy="${i}">복사</button><button class="btn sm" data-myuse="${i}">불러오기</button><button class="btn sm primary" data-mynode="${i}">🎛 스튜디오 노드로</button><button class="btn sm danger" data-mydel="${i}">삭제</button></div></div></details>`;
+  return `<div class="card"><h3>📚 프롬프트 모음</h3><p class="muted" style="margin-top:-4px">제목을 누르면 전체 내용이 열려요.</p>
+    <div class="muted" style="font-size:12px;font-weight:700;margin:8px 0 4px">🎬 영상 세트</div>${PROMPT_SETS.map(set).join('')}
+    <div class="muted" style="font-size:12px;font-weight:700;margin:12px 0 4px">💾 내가 저장한 프롬프트</div>${mine.length?mine.map(my).join(''):'<div class="muted" style="font-size:13px">아직 없어요. 위에서 만든 뒤 💾 모음에 저장하세요.</div>'}</div>`;
 }
 function renderPromptPage(){
   const box=document.getElementById('promptBox'); if(!box) return;
@@ -1666,6 +1678,7 @@ document.addEventListener('click', async e=>{
   const sn=e.target.closest('[data-psnode]'); if(sn){ const S=PROMPT_SETS.find(x=>x.id===sn.dataset.psnode); const St=studio(); const proj={id:uid(),name:S.title.replace(/^\S+\s/,'').replace(/\s*\(.*\)$/,''),ar:S.ar,look:S.look,nodes:setNodes(S)}; St.projects.unshift(proj); St.cur=proj.id; save(); toast(`노드 ${proj.nodes.length}개를 만들었어요. 그림 노드부터 차례로 만들어 주세요`); go('studio'); return; }
   const sc=e.target.closest('[data-pscopy]'); if(sc){ copy(setText(PROMPT_SETS.find(x=>x.id===sc.dataset.pscopy))); return; }
   const mc=e.target.closest('[data-mycopy]'); if(mc){ copy(userSets()[Number(mc.dataset.mycopy)].text); return; }
+  const mn=e.target.closest('[data-mynode]'); if(mn){ const m=userSets()[Number(mn.dataset.mynode)]; const P=curProj(); const last=[...P.nodes].reverse().find(x=>x.type==='image'); P.nodes.push(m.kind==='video'?{id:uid(),type:'video',prompt:m.text,imgFrom:last?.id||'',dur:6}:{id:uid(),type:'image',prompt:m.text}); save(); toast('스튜디오에 노드를 넣었어요'); go('studio'); return; }
   const mu=e.target.closest('[data-myuse]'); if(mu){ const m=userSets()[Number(mu.dataset.myuse)]; PB.out=m.text; PB.kind=m.kind; renderPromptPage(); window.scrollTo(0,0); return; }
   const md=e.target.closest('[data-mydel]'); if(md){ if(!confirm('이 프롬프트를 지울까요?')) return; userSets().splice(Number(md.dataset.mydel),1); save(); renderPromptPage(); return; }
   if(id==='pb_tonode'){ const P=curProj(); P.nodes.push({id:uid(),type:PB.kind,prompt:out(),dur:6}); save(); toast('스튜디오에 노드를 넣었어요'); go('studio'); }
