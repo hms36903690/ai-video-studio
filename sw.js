@@ -1,6 +1,6 @@
 // AI 영상 스튜디오 — 인터넷이 없어도 열리게 화면 파일을 기기에 저장합니다.
 // 새 버전을 올릴 때는 아래 숫자를 올려 주세요.
-const CACHE = 'aivs-v8';
+const CACHE = 'aivs-v9';
 const FILES = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, {cache: 'reload'})))).then(() => self.skipWaiting()));

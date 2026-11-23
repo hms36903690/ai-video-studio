@@ -33,7 +33,20 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%;word-break:keep-all;overflow-wrap:anywhere}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
-.sidebar{display:none}
+.sidebar{display:none;background:#121120;color:#fff;padding:18px 12px 30px;overflow-y:auto}
+.sidebar .brand{font-weight:800;font-size:17px;margin:2px 8px 18px;display:flex;align-items:center;gap:8px}
+.sidebar .brand i{font-style:normal;background:#fff;color:#121120;border-radius:8px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+.sidebar .sec{font-size:12px;color:#8e8cab;margin:16px 10px 6px;font-weight:700;letter-spacing:.02em}
+.sidebar button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;color:#d6d5ee;padding:10px 12px;border-radius:10px;margin-bottom:2px;font-size:15px}
+.sidebar button .ic{width:22px;text-align:center}
+.sidebar button .dot{margin-left:auto;width:7px;height:7px;border-radius:99px;background:#ec4899}
+.sidebar button.active,.sidebar button:hover{background:rgba(255,255,255,.1);color:#fff;font-weight:700}
+.menu-btn{border:1px solid var(--line);background:var(--card);border-radius:10px;width:40px;height:40px;font-size:18px;display:inline-flex;align-items:center;justify-content:center}
+.backdrop{display:none}
+@media(max-width:759px){
+  body.drawer .sidebar{display:block;position:fixed;top:0;bottom:0;left:0;width:270px;z-index:60;padding-top:calc(18px + env(safe-area-inset-top));box-shadow:4px 0 30px rgba(0,0,0,.4)}
+  body.drawer .backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55}
+}
 .main{padding:0 16px calc(90px + env(safe-area-inset-bottom))}
 .top{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:8px;padding:12px 0;padding-top:calc(12px + env(safe-area-inset-top))}
 .top h1{font-size:19px;margin:0;flex:1}
@@ -43,11 +56,9 @@ button{cursor:pointer}
 .bottom-nav button.active{color:var(--accent);font-weight:800}
 @media(min-width:760px){
   .bottom-nav{display:none}
-  .sidebar{display:block;position:fixed;top:0;bottom:0;left:0;width:220px;background:var(--brand);color:#fff;padding:22px 14px}
-  .sidebar .brand{font-weight:800;font-size:17px;margin:0 8px 20px}
-  .sidebar button{display:block;width:100%;text-align:left;border:0;background:transparent;color:#c7c6e8;padding:11px 12px;border-radius:10px;margin-bottom:4px;font-size:15px}
-  .sidebar button.active,.sidebar button:hover{background:rgba(255,255,255,.12);color:#fff;font-weight:700}
-  .main{margin-left:220px;padding:0 28px 40px;max-width:1120px}
+  .sidebar{display:block;position:fixed;top:0;bottom:0;left:0;width:240px}
+  .menu-btn{display:none}
+  .main{margin-left:240px;padding:0 28px 40px;max-width:1120px}
   .stats{grid-template-columns:repeat(4,1fr)!important}
   .formgrid{grid-template-columns:1fr 1fr!important}
   .cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -118,10 +129,11 @@ details summary{cursor:pointer;font-weight:700}
 </head>
 <body>
 <nav class="sidebar" id="sidebar">
-  <div class="brand">🎬 AI 영상 스튜디오</div>
+  <div class="brand"><i>🎬</i> AI 영상 스튜디오</div>
 </nav>
+<div class="backdrop" id="backdrop"></div>
 <div class="main">
-  <div class="top"><h1 id="pageTitle">홈</h1></div>
+  <div class="top"><button class="menu-btn" id="menuBtn" aria-label="메뉴">☰</button><h1 id="pageTitle">홈</h1></div>
 
   <!-- 홈 -->
   <section class="page" id="p-home">
@@ -181,6 +193,9 @@ details summary{cursor:pointer;font-weight:700}
     <div class="card"><div class="list" id="orderList"></div></div>
   </section>
 
+  <!-- 스튜디오 (영상 노드) -->
+  <section class="page" id="p-studio"><div id="studioBox"></div></section>
+
   <!-- 작업함 -->
   <section class="page" id="p-library"><div id="libBox"></div></section>
 
@@ -219,7 +234,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-8';
+const APP_VERSION = '2026.11.23-9';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -874,21 +889,55 @@ $('#importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; t
 $('#resetBtn').onclick=()=>{ if(confirm('주문·기획안·설정을 모두 지울까요? 되돌릴 수 없어요. 먼저 백업을 권해요.') && confirm('정말 지울까요?')){ DB=defaults(); save(); applyTheme(); renderAll(); toast('모두 지웠어요'); } };
 
 /* ---------- 화면 이동 ---------- */
-const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정']];
+const PAGES=[['home','🏠','홈'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정']];
+// 왼쪽 메뉴: 묶음(섹션)별로 / to = 그 화면 안의 칸으로 바로 이동
+const SIDE=[
+  {k:'home',i:'🏠',l:'홈'},
+  {k:'library',i:'🗂',l:'작업함'},
+  {sec:'영상 만들기'},
+  {k:'plan',i:'🔍',l:'레퍼런스 분석',to:'refCard'},
+  {k:'plan',i:'📝',l:'기획 · 프롬프트',to:'top'},
+  {k:'plan',i:'🤖',l:'영상 자동 만들기',to:'autoCard'},
+  {k:'plan',i:'🎤',l:'AI 진행자',to:'presCard',dot:1},
+  {k:'studio',i:'🎛',l:'스튜디오 (영상 노드)',dot:1},
+  {k:'plan',i:'🔁',l:'루프 영상',to:'autoCard'},
+  {k:'library',i:'📌',l:'기준 사진 · 진행자',to:'top'},
+  {sec:'사업 관리'},
+  {k:'orders',i:'📋',l:'주문 · 견적서'},
+  {k:'home',i:'📈',l:'매출 · 목표',to:'top'},
+  {sec:'도구'},
+  {k:'settings',i:'🔌',l:'AI 연결',to:'aiSettings'},
+  {k:'settings',i:'⚙️',l:'설정 · 백업'},
+];
 function go(p){
   if(!PAGES.some(x=>x[0]===p)) p='home';
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active', x.id==='p-'+p));
   document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active', x.dataset.page===p));
+  document.querySelectorAll('#sidebar [data-side]').forEach(x=>x.classList.remove('active'));
+  const first=document.querySelector(`#sidebar [data-side][data-k="${p}"]`); if(first) first.classList.add('active');
+  document.body.classList.remove('drawer');
   $('#pageTitle').textContent = PAGES.find(x=>x[0]===p)[2];
   if(location.hash!=='#'+p) history.replaceState(null,'','#'+p);
   window.scrollTo(0,0);
   if(typeof window.onPage==='function') window.onPage(p);
 }
 function renderNav(){
-  const html=PAGES.map(([k,i,l])=>`<button data-page="${k}"><span>${i}</span>${l}</button>`).join('');
-  $('#bottomNav').innerHTML=html;
-  $('#sidebar').insertAdjacentHTML('beforeend', PAGES.map(([k,i,l])=>`<button data-page="${k}">${i} ${l}</button>`).join(''));
-  document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page));
+  // 아래 탭(휴대폰): 자주 쓰는 4개 + ☰ 전체 메뉴
+  $('#bottomNav').innerHTML=[['home','🏠','홈'],['plan','🎬','기획'],['studio','🎛','스튜디오'],['library','🗂','작업함']].map(([k,i,l])=>`<button data-page="${k}"><span>${i}</span>${l}</button>`).join('')+`<button id="navMenu"><span>☰</span>메뉴</button>`;
+  $('#sidebar').insertAdjacentHTML('beforeend', SIDE.map((x,n)=>x.sec?`<div class="sec">${x.sec}</div>`:`<button data-side="${n}" data-k="${x.k}"><span class="ic">${x.i}</span>${x.l}${x.dot?'<span class="dot"></span>':''}</button>`).join(''));
+  document.querySelectorAll('#bottomNav [data-page]').forEach(b=>b.onclick=()=>go(b.dataset.page));
+  document.querySelectorAll('#sidebar [data-side]').forEach(b=>b.onclick=()=>{
+    const x=SIDE[Number(b.dataset.side)]; go(x.k);
+    document.querySelectorAll('#sidebar [data-side]').forEach(y=>y.classList.toggle('active', y===b));
+    if(x.to && x.to!=='top') setTimeout(()=>{
+      const el=document.getElementById(x.to);
+      if(!el || !el.innerHTML.trim()){ toast('먼저 기획안을 만들어 주세요 (가게 정보 → 기획안 자동 만들기)'); $('#f_name').scrollIntoView({behavior:'smooth',block:'center'}); return; }
+      const d=el.querySelector('details'); if(d) d.open=true;
+      el.scrollIntoView({behavior:'smooth',block:'start'});
+    },80);
+  });
+  const toggle=()=>document.body.classList.toggle('drawer');
+  $('#menuBtn').onclick=toggle; $('#navMenu').onclick=toggle; $('#backdrop').onclick=toggle;
 }
 function renderAll(){ renderHome(); renderOrders(); renderPlanList(); renderSettings(); renderOrderSelect($('#f_order').value); }
 
@@ -1750,6 +1799,175 @@ document.getElementById('planOut').addEventListener('change', async e=>{
   if(e.target.id==='pr_ownface' && e.target.files[0]){ const b=await shrinkImage(e.target.files[0]); Pr.face=withUrl({blob:b,mime:b.type||'image/jpeg',b64:await blobToB64(b)}); Pr.own=true; Pr.consent=false; Pr.cuts.forEach(c=>{c.status='대기';c.img=null;c.clip=null;}); renderPresenter(Pr.plan); }
 });
 
+/* =====================================================================
+   🎛 스튜디오 — 영상 노드: 컷마다 글(프롬프트)을 직접 쓰고, 그림을 불러와 영상으로
+   그림 노드 → (그림 부르기) → 영상 노드 → … → 합치기
+   ===================================================================== */
+async function libGet(id){ try{ return await lib('readonly',st=>st.get(id)); }catch(e){ return null; } }
+const _urlCache={};
+async function assetUrl(id){ if(!id) return null; if(_urlCache[id]) return _urlCache[id]; const a=await libGet(id); if(!a) return null; _urlCache[id]={url:URL.createObjectURL(a.blob), blob:a.blob, mime:a.mime||a.blob.type}; return _urlCache[id]; }
+function studio(){ if(!DB.studio) DB.studio={projects:[],cur:null}; if(!DB.studio.projects.length){ const p={id:uid(),name:'새 프로젝트',ar:'9:16',look:'phone',nodes:[]}; DB.studio.projects.push(p); DB.studio.cur=p.id; save(); } return DB.studio; }
+function curProj(){ const S=studio(); return S.projects.find(p=>p.id===S.cur)||S.projects[0]; }
+function nodeLabel(P,n){ const same=P.nodes.filter(x=>x.type===n.type); return (n.type==='image'?'이미지':'영상')+(same.indexOf(n)+1); }
+const QUOTE_RE=/["“”「」『』']([^"“”「」『』']{2,})["“”「」『』']/g;
+function quotes(t){ return [...String(t||'').matchAll(QUOTE_RE)].map(m=>m[1].trim()); }
+function nodeCheck(n){
+  if(CELEB_RE.test(n.prompt||'')) return '🚫 실존 인물(유명인) 이름이 있어요. 초상권·거짓 광고 문제로 만들 수 없어요. 가상 인물로 바꿔 주세요.';
+  if(quotes(n.prompt).some(q=>REVIEW_RE.test(q))) return '🚫 대사가 손님 후기처럼 들려요. 가상 인물의 후기는 거짓 광고가 돼요.';
+  return '';
+}
+const SNIPPETS = [
+  ['🗣 카메라 보고 말하기','인물이 카메라를 보며 밝게 웃으며 "여기에 대사"라고 말한다.'],
+  ['👥 두 사람 대화','왼쪽 인물이 웃으며 "첫 번째 대사"라고 말하자, 오른쪽 인물이 자연스럽게 고개를 끄덕이며 "두 번째 대사"라고 답한다.'],
+  ['🎥 천천히 다가가기','카메라가 천천히 앞으로 다가간다.'],
+  ['🔄 주위를 돌기','카메라가 대상 주위를 천천히 돈다.'],
+  ['🍜 김·연기','음식에서 김이 자연스럽게 피어오른다.'],
+  ['📱 휴대폰 촬영 느낌','휴대폰으로 손에 들고 찍은 듯 살짝 흔들린다.'],
+];
+let STU={busy:false, video:null, sub:true, label:true, music:null};
+async function renderStudio(){
+  const box=document.getElementById('studioBox'); if(!box) return;
+  const S=studio(), P=curProj(); const key=getKey();
+  const imgs=P.nodes.filter(n=>n.type==='image');
+  const media={}; for(const n of P.nodes){ if(n.assetId) media[n.id]=await assetUrl(n.assetId); }
+  const st=s=>({'대기':'','진행':'warn','완료':'ok','오류':'bad'})[s||'대기']||'';
+  box.innerHTML=`<div class="card">
+    <div class="row"><select id="st_proj" style="flex:1;min-width:140px">${S.projects.map(p=>`<option value="${p.id}"${p.id===P.id?' selected':''}>${esc(p.name)}</option>`).join('')}</select>
+      <button class="btn sm" id="st_new">＋ 새 프로젝트</button><button class="btn sm" id="st_ren">이름</button><button class="btn sm danger" id="st_del">삭제</button></div>
+    <div class="row" style="margin-top:8px"><span class="muted">비율</span>${['9:16','16:9','1:1'].map(r=>`<button class="chip${P.ar===r?' on':''}" data-sar="${r}">${r}</button>`).join('')}
+      <span class="muted" style="margin-left:6px">느낌</span>${Object.entries(REAL_LOOK).map(([k,v])=>`<button class="chip${P.look===k?' on':''}" data-slook="${k}">${k==='phone'?'📱 휴대폰':'📷 광고'}</button>`).join('')}</div>
+    <p class="muted" style="margin:8px 0 0">컷마다 <b>노드</b>를 만들어요. <b>그림 노드</b>로 장면 그림을 만들고, <b>영상 노드</b>에서 그 그림을 <b>불러와</b> 움직임·대사를 글로 쓰면 영상이 돼요. 대사는 <b>"큰따옴표"</b> 안에 쓰면 인물이 한국어로 말해요. 마지막에 <b>합치기</b>.</p>
+    ${key?'':'<div class="warnbox" style="margin-top:8px">⚙️ 설정 → AI 연결에 키를 넣어야 그림·영상이 만들어져요. 지금은 노드 짜기·내 파일 넣기·합치기만 돼요.</div>'}
+  </div>
+  <div style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 12px;align-items:flex-start">
+    ${P.nodes.map((n,i)=>{ const m=media[n.id]; const warn=nodeCheck(n); const ratio=P.ar.replace(':','/');
+      const prev = m ? (n.type==='video'?`<video src="${m.url}#t=0.1" preload="metadata" controls playsinline style="width:100%;aspect-ratio:${ratio};object-fit:cover;border-radius:8px;background:#000"></video>`:`<img src="${m.url}" style="width:100%;aspect-ratio:${ratio};object-fit:cover;border-radius:8px">`)
+        : `<div style="width:100%;aspect-ratio:${ratio};border-radius:8px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:30px">${n.type==='video'?'🎬':'🖼'}</div>`;
+      return `${i?'<div style="align-self:center;font-size:20px;color:var(--sub)">→</div>':''}<div class="card" style="flex:none;width:250px;margin:0;padding:10px;border-color:${n.type==='video'?'#db2777':'var(--accent)'}">
+        <div class="row" style="justify-content:space-between;gap:4px"><b>${n.type==='video'?'🎬':'🖼'} ${nodeLabel(P,n)}</b><span class="tag ${st(n.status)}">${esc(n.status||'대기')}</span>
+          <span><button class="btn sm" data-nmv="${i}:-1">◀</button><button class="btn sm" data-nmv="${i}:1">▶</button><button class="btn sm danger" data-ndel="${i}">🗑</button></span></div>
+        <div style="margin-top:6px">${prev}</div>
+        <textarea data-nprompt="${i}" style="margin-top:6px;min-height:84px;font-size:14px" placeholder="${n.type==='video'?'예: 왼쪽 인물이 웃으며 "어서 오세요, 사쿠라미치입니다"라고 말한다. 카메라가 천천히 다가간다.':'예: 벚꽃 장식 아래 바 좌석에 앉은 20대 커플, 따뜻한 조명'}">${esc(n.prompt||'')}</textarea>
+        <div class="row" style="gap:4px;margin-top:4px"><button class="btn sm" data-nbig="${i}">✏️ 크게 쓰기</button><span class="muted" style="font-size:12px">${hangulLen(n.prompt||'')}자</span></div>
+        ${n.type==='video'?`<label style="margin-top:6px">그림 부르기</label><select data-nimg="${i}"><option value="">(그림 없이 글로만)</option>${imgs.map(x=>`<option value="${x.id}"${n.imgFrom===x.id?' selected':''}>${nodeLabel(P,x)}${x.assetId?'':' (아직 없음)'}</option>`).join('')}</select>
+          <label style="margin-top:6px">길이</label><select data-ndur="${i}">${[3,4,5,6,8,10,12,15].map(d=>`<option${(n.dur||6)===d?' selected':''}>${d}</option>`).join('')}</select>
+          ${quotes(n.prompt).length?`<div class="muted" style="font-size:12px;margin-top:4px">🗣 대사: ${esc(quotes(n.prompt).join(' / '))}</div>`:''}`
+        :`<label style="margin-top:6px">같은 인물·장소 유지 (선택)</label><select data-nkeep="${i}"><option value="">사용 안 함</option>${imgs.filter(x=>x!==n).map(x=>`<option value="${x.id}"${n.keepFrom===x.id?' selected':''}>${nodeLabel(P,x)}</option>`).join('')}</select>`}
+        ${warn?`<div class="warnbox" style="margin-top:6px;font-size:13px">${esc(warn)}</div>`:''}
+        ${n.err?`<div style="color:var(--bad);font-size:12px;margin-top:4px">${esc(n.err)}</div>`:''}
+        <div class="row" style="gap:4px;margin-top:8px"><button class="btn sm primary" data-ngen="${i}"${STU.busy||warn||!key?' disabled':''}>${n.type==='video'?'🎬 영상 만들기':'✨ 그림 만들기'}</button>
+          <label class="btn sm" style="margin:0;color:var(--ink)">내 파일<input type="file" accept="${n.type==='video'?'video/*':'image/*'}" data-nown="${i}" hidden></label>
+          <button class="btn sm" data-npick="${i}">작업함</button></div>
+      </div>`; }).join('')}
+    <div style="flex:none;display:flex;flex-direction:column;gap:6px;align-self:center">
+      <button class="btn" data-nadd="image">＋ 🖼 그림 노드</button><button class="btn" data-nadd="video">＋ 🎬 영상 노드</button><button class="btn" data-nadd="pair">＋ 그림→영상 한 쌍</button></div>
+  </div>
+  <div class="card"><h3>🎞 영상 노드 합치기</h3>
+    <label style="font-weight:600"><input type="checkbox" id="st_sub" style="width:auto"${STU.sub?' checked':''}> 따옴표 대사를 자막으로 넣기</label>
+    <label style="font-weight:600"><input type="checkbox" id="st_label" style="width:auto"${STU.label?' checked':''}> 'AI 연출' 표시 넣기 (권장)</label>
+    <label style="margin-top:6px">배경음악 (선택)</label><input type="file" id="st_music" accept="audio/*"><p class="muted" style="margin:4px 0">${STU.music?'🎵 '+esc(STU.music.name):'영상 속 소리(대사·주변 소리)는 그대로 들어가요.'}</p>
+    <button class="btn primary big" id="st_merge"${STU.busy?' disabled':''}>${STU.busy?'⏳ 작업 중…':'🎞 영상 노드 합치기'}</button>
+    <div id="st_log" class="muted" style="margin-top:6px"></div>
+    ${STU.video?`<div class="okbox" style="margin-top:8px">✅ 완성 (${STU.video.ext.toUpperCase()} · ${STU.video.sec}초) · 🗂 작업함에도 저장했어요</div><video src="${STU.video.url}" controls playsinline style="width:100%;max-height:70vh;border-radius:12px;background:#000"></video><a class="btn primary" href="${STU.video.url}" download="${esc(P.name)}_${today()}.${STU.video.ext}" style="display:block;text-align:center;text-decoration:none;margin-top:8px">⬇ 영상 파일 저장</a>`:''}
+  </div>`;
+}
+function slog(m){ const el=document.getElementById('st_log'); if(el) el.textContent=m; }
+async function nodeGen(P,n){
+  n.status='진행'; n.err=''; save(); renderStudio();
+  try{
+    const look=REAL_LOOK[P.look]||REAL_LOOK.phone;
+    if(n.type==='image'){
+      const parts=[]; const keep=n.keepFrom&&P.nodes.find(x=>x.id===n.keepFrom);
+      if(keep&&keep.assetId){ const k=await assetUrl(keep.assetId); parts.push({inline_data:{mime_type:k.mime,data:await blobToB64(k.blob)}}); }
+      parts.push({text:`${keep&&keep.assetId?'Keep the SAME person(s), outfit and place as the attached image (identical faces). ':''}${n.prompt}\n\n${look.img} ${REAL_CORE.replace('inside a real, ordinary Korean shop today','in a real place today')} Any people are original fictional people, not resembling real celebrities. Absolutely no text, letters, logos or watermarks.`});
+      const j=await gpost(`https://generativelanguage.googleapis.com/v1/models/${aiCfg().imageModel}:generateContent`,{contents:[{parts}],generationConfig:{responseModalities:['IMAGE'],imageConfig:{aspectRatio:P.ar,imageSize:'2K'}}});
+      const p=(j.candidates?.[0]?.content?.parts||[]).find(x=>x.inlineData||x.inline_data); if(!p) throw new Error(friendlyError(200,j.candidates?.[0]?.finishReason||'그림이 오지 않았어요'));
+      const d=p.inlineData||p.inline_data; const blob=b64ToBlob(d.data,d.mimeType||d.mime_type||'image/png');
+      n.assetId=await saveAsset(P.name,'image',blob,{scene:'노드 '+nodeLabel(P,n)});
+    } else {
+      const input=[]; const from=n.imgFrom&&P.nodes.find(x=>x.id===n.imgFrom);
+      if(from&&from.assetId){ const k=await assetUrl(from.assetId); input.push({type:'image',data:await blobToB64(k.blob),mime_type:k.mime}); }
+      input.push({type:'text',text:`${n.prompt}\n\n(${from&&from.assetId?'Animate the attached image; keep faces, outfits and place exactly the same. ':''}Make it look like real footage ${look.vid}. Physically plausible natural motion, no morphing. Lines inside quotation marks are spoken aloud in natural Korean with accurate lip sync by the described person. No on-screen text or subtitles, no background music.)`});
+      const body={model:aiCfg().videoModel,input,response_format:{type:'video',aspect_ratio:P.ar==='16:9'?'16:9':'9:16',duration:(n.dur||6)+'s',resolution:'720p'}};
+      let j=await gpost('https://generativelanguage.googleapis.com/v1beta/interactions',body,true); const t0=Date.now();
+      while(j.status && j.status!=='completed'){
+        if(/fail|cancel/i.test(j.status)) throw new Error('영상 만들기가 실패했어요 ('+j.status+')');
+        if(Date.now()-t0>10*60*1000) throw new Error('영상이 너무 오래 걸려요');
+        slog(`${nodeLabel(P,n)} 만드는 중… ${Math.round((Date.now()-t0)/1000)}초`); await sleep(8000);
+        const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions/${j.id}?key=${encodeURIComponent(getKey())}`); j=await r.json(); if(!r.ok) throw new Error(friendlyError(r.status,j.error?.message));
+      }
+      const out=(j.steps||[]).filter(s=>s.type==='model_output').flatMap(s=>s.content||[]).find(c=>c.type==='video'); if(!out?.data) throw new Error('영상이 오지 않았어요');
+      n.assetId=await saveAsset(P.name,'video',b64ToBlob(out.data,out.mime_type||'video/mp4'),{scene:'노드 '+nodeLabel(P,n), sec:n.dur||6});
+    }
+    n.status='완료';
+  }catch(err){ n.status='오류'; n.err=err.message; }
+  save(); slog(''); renderStudio();
+}
+async function studioMerge(){
+  const P=curProj(); if(STU.busy) return; if(!window.MediaRecorder){ toast('이 브라우저는 영상 저장을 못 해요'); return; }
+  const vids=P.nodes.filter(n=>n.type==='video'&&n.assetId); if(!vids.length){ toast('완성된 영상 노드가 없어요'); return; }
+  actx(); STU.busy=true; renderStudio(); slog('합치는 중… 영상 길이만큼 걸려요. 화면을 끄지 마세요.');
+  const items=[]; for(const n of vids){ const a=await assetUrl(n.assetId); const v=document.createElement('video'); v.src=a.url; v.playsInline=true; v.preload='auto'; await new Promise(r=>{ v.onloadeddata=r; v.onerror=r; setTimeout(r,6000); }); items.push({n, media:v, dur:isFinite(v.duration)&&v.duration>0?v.duration:(n.dur||6), sub:quotes(n.prompt).join(' ')}); }
+  const [W,H]=canvasSize(P.ar); let t=0; items.forEach(it=>{ it.start=t; t+=it.dur; }); const total=t; let cur=-1;
+  const res=await recordCanvas(W,H,total,(g,now,dest,ctx)=>{
+    let i=items.findIndex(it=>now<it.start+it.dur); if(i<0) i=items.length-1; const it=items[i];
+    if(i!==cur){ if(items[cur]) items[cur].media.pause(); cur=i; if(!it.src){ it.media.muted=false; it.src=ctx.createMediaElementSource(it.media); it.src.connect(dest); } try{ it.media.currentTime=0; it.media.play(); }catch(e){} slog(`합치는 중… ${Math.round(now)} / ${Math.round(total)}초`); }
+    g.fillStyle='#000'; g.fillRect(0,0,W,H); drawCover(g,it.media,W,H,1,0,0);
+    if(STU.sub && it.sub) drawTalkSub(g,it.sub,W,H,[]);
+    if(STU.label) drawAiLabel(g,W,H);
+  },(ctx,dest,t0)=>{ if(STU.music){ const m=ctx.createBufferSource(), gn=ctx.createGain(); m.buffer=STU.music.buffer; m.loop=true; m.connect(gn); gn.connect(dest); gn.gain.setValueAtTime(0.15,t0); gn.gain.setValueAtTime(0.15,t0+total-1.2); gn.gain.linearRampToValueAtTime(0.0001,t0+total); m.start(t0); m.stop(t0+total+0.2); } });
+  items.forEach(it=>it.media.pause());
+  if(STU.video) URL.revokeObjectURL(STU.video.url);
+  STU.video={url:URL.createObjectURL(res.blob),ext:res.ext,sec:Math.round(total)};
+  saveAsset(P.name,'final',res.blob,{name:`${P.name}_스튜디오.${res.ext}`,sec:Math.round(total)});
+  STU.busy=false; slog(''); renderStudio();
+}
+function bigEditor(P,i){
+  const n=P.nodes[i]; const imgs=P.nodes.filter(x=>x.type==='image');
+  openSheet(`<h2>${n.type==='video'?'🎬 영상':'🖼 그림'} 노드 · ${nodeLabel(P,n)} <span class="muted" id="be_cnt" style="font-size:13px">${hangulLen(n.prompt||'')}자</span><button class="btn sm primary" id="be_ok">완료</button></h2>
+    <textarea id="be_txt" style="min-height:45vh;font-size:16px;line-height:1.7">${esc(n.prompt||'')}</textarea>
+    <label style="margin-top:8px">빠르게 넣기</label><div class="chips">${SNIPPETS.map((s,k)=>`<button class="chip" data-snip="${k}">${s[0]}</button>`).join('')}</div>
+    ${n.type==='video'?`<label style="margin-top:8px">그림 부르기</label><div class="chips">${imgs.map(x=>`<button class="chip${n.imgFrom===x.id?' on':''}" data-becall="${x.id}">🖼 ${nodeLabel(P,x)}</button>`).join('')||'<span class="muted">그림 노드가 아직 없어요</span>'}</div>`:''}
+    <p class="muted" style="margin-top:8px">대사는 "큰따옴표" 안에 쓰세요. 실존 인물(유명인) 이름, 손님 후기 말투는 쓸 수 없어요.</p>`);
+  const ta=document.getElementById('be_txt'); ta.focus();
+  ta.oninput=()=>{ document.getElementById('be_cnt').textContent=hangulLen(ta.value)+'자'; };
+  document.getElementById('sheet').querySelectorAll('[data-snip]').forEach(b=>b.onclick=()=>{ const s=SNIPPETS[Number(b.dataset.snip)][1]; const p=ta.selectionStart||ta.value.length; ta.value=ta.value.slice(0,p)+(p&&!/\s$/.test(ta.value.slice(0,p))?' ':'')+s+ta.value.slice(p); ta.oninput(); ta.focus(); });
+  document.getElementById('sheet').querySelectorAll('[data-becall]').forEach(b=>b.onclick=()=>{ n.imgFrom=b.dataset.becall; document.getElementById('sheet').querySelectorAll('[data-becall]').forEach(x=>x.classList.toggle('on',x===b)); });
+  document.getElementById('be_ok').onclick=()=>{ n.prompt=ta.value.trim(); n.status=n.assetId?n.status:'대기'; save(); closeSheet(); renderStudio(); };
+}
+document.addEventListener('click', async e=>{
+  if(!e.target.closest('#studioBox')) return; const S=studio(), P=curProj(); const id=e.target.id;
+  if(id==='st_new'){ const name=prompt('프로젝트 이름 (예: 사쿠라미치 진행자 영상)','새 프로젝트'); if(!name) return; const p={id:uid(),name:name.trim(),ar:'9:16',look:'phone',nodes:[]}; S.projects.unshift(p); S.cur=p.id; save(); renderStudio(); return; }
+  if(id==='st_ren'){ const name=prompt('새 이름',P.name); if(!name) return; P.name=name.trim(); save(); renderStudio(); return; }
+  if(id==='st_del'){ if(!confirm(`'${P.name}' 프로젝트를 지울까요? (작업함에 저장된 그림·영상은 남아요)`)) return; S.projects=S.projects.filter(x=>x!==P); S.cur=S.projects[0]?.id||null; save(); renderStudio(); return; }
+  if(id==='st_merge'){ studioMerge(); return; }
+  const ar=e.target.closest('[data-sar]'); if(ar){ P.ar=ar.dataset.sar; save(); renderStudio(); return; }
+  const lk=e.target.closest('[data-slook]'); if(lk){ P.look=lk.dataset.slook; save(); renderStudio(); return; }
+  const ad=e.target.closest('[data-nadd]'); if(ad){ const t=ad.dataset.nadd; if(t==='pair'){ const im={id:uid(),type:'image',prompt:''}; P.nodes.push(im,{id:uid(),type:'video',prompt:'',imgFrom:im.id,dur:6}); } else { const last=[...P.nodes].reverse().find(x=>x.type==='image'); P.nodes.push(t==='video'?{id:uid(),type:'video',prompt:'',imgFrom:last?.id||'',dur:6}:{id:uid(),type:'image',prompt:''}); } save(); renderStudio(); setTimeout(()=>{ const r=document.querySelector('#studioBox [style*="overflow-x"]'); if(r) r.scrollLeft=r.scrollWidth; },50); return; }
+  const mv=e.target.closest('[data-nmv]'); if(mv){ const [i,d]=mv.dataset.nmv.split(':').map(Number); const j=i+d; if(j<0||j>=P.nodes.length) return; [P.nodes[i],P.nodes[j]]=[P.nodes[j],P.nodes[i]]; save(); renderStudio(); return; }
+  const dl=e.target.closest('[data-ndel]'); if(dl){ const n=P.nodes[Number(dl.dataset.ndel)]; if(!confirm(`${nodeLabel(P,n)} 노드를 지울까요?`)) return; P.nodes.splice(Number(dl.dataset.ndel),1); P.nodes.forEach(x=>{ if(x.imgFrom===n.id) x.imgFrom=''; if(x.keepFrom===n.id) x.keepFrom=''; }); save(); renderStudio(); return; }
+  const bg=e.target.closest('[data-nbig]'); if(bg){ bigEditor(P,Number(bg.dataset.nbig)); return; }
+  const gn=e.target.closest('[data-ngen]'); if(gn){ const n=P.nodes[Number(gn.dataset.ngen)]; if(!(n.prompt||'').trim()){ toast('노드에 글(프롬프트)을 먼저 써 주세요'); return; } if(nodeCheck(n)) return; STU.busy=true; await nodeGen(P,n); STU.busy=false; renderStudio(); return; }
+  const pk=e.target.closest('[data-npick]'); if(pk){ const n=P.nodes[Number(pk.dataset.npick)]; const kinds=n.type==='video'?['video','final','loop']:['image','ref','presenter'];
+    const all=(await libAll()).filter(x=>kinds.includes(x.kind)); if(!all.length){ toast('작업함에 고를 것이 없어요'); return; } const urls=[];
+    openSheet(`<h2>🗂 작업함에서 고르기<button class="btn sm" id="xBtn">닫기</button></h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">${all.map(x=>{ const u=URL.createObjectURL(x.blob); urls.push(u); return `<button class="scene" data-take="${x.id}" style="padding:6px;margin:0;background:var(--card);text-align:left">${n.type==='video'?`<video src="${u}#t=0.1" preload="metadata" muted style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px"></video>`:`<img src="${u}" style="width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px">`}<div style="font-size:12px"><b>${esc(x.project)}</b><br><span class="muted">${KIND_KO[x.kind]||x.kind}</span></div></button>`; }).join('')}</div>`);
+    document.getElementById('xBtn').onclick=()=>{ closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); };
+    document.getElementById('sheet').querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>{ n.assetId=b.dataset.take; n.status='완료'; n.err=''; save(); closeSheet(); urls.forEach(u=>URL.revokeObjectURL(u)); renderStudio(); });
+    return; }
+});
+document.addEventListener('change', async e=>{
+  if(!e.target.closest('#studioBox')) return; const S=studio(), P=curProj(); const d=e.target.dataset;
+  if(e.target.id==='st_proj'){ S.cur=e.target.value; save(); STU.video=null; renderStudio(); return; }
+  if(e.target.id==='st_sub'){ STU.sub=e.target.checked; return; }
+  if(e.target.id==='st_label'){ STU.label=e.target.checked; return; }
+  if(e.target.id==='st_music' && e.target.files[0]){ try{ STU.music={name:e.target.files[0].name, buffer:await decodeAudio(e.target.files[0])}; toast('배경음악을 넣었어요'); }catch(err){ toast('이 음악 파일은 읽을 수 없어요'); } renderStudio(); return; }
+  if(d.nprompt!==undefined){ const n=P.nodes[Number(d.nprompt)]; n.prompt=e.target.value.trim(); save(); setTimeout(renderStudio,0); return; }
+  if(d.nimg!==undefined){ P.nodes[Number(d.nimg)].imgFrom=e.target.value; save(); return; }
+  if(d.ndur!==undefined){ P.nodes[Number(d.ndur)].dur=Number(e.target.value); save(); return; }
+  if(d.nkeep!==undefined){ P.nodes[Number(d.nkeep)].keepFrom=e.target.value; save(); return; }
+  if(d.nown!==undefined && e.target.files[0]){ const n=P.nodes[Number(d.nown)]; let f=e.target.files[0]; if(n.type==='image') f=await shrinkImage(f); n.assetId=await saveAsset(P.name,n.type==='video'?'video':'image',f,{scene:'노드 '+nodeLabel(P,n)}); n.status='완료'; n.err=''; save(); renderStudio(); }
+});
+
 /* ---------- 기획 결과에 붙이기 ---------- */
 const _renderPlan = renderPlan;
 renderPlan = function(P){
@@ -1796,8 +2014,8 @@ document.addEventListener('click', async e=>{
 const _renderSettings = renderSettings;
 renderSettings = function(){ _renderSettings(); renderAISettings(); };
 renderAISettings(); renderRefCard();
-window.onPage = p => { if(p==='library') renderLibrary(); };
-if(location.hash==='#library') renderLibrary();
+window.onPage = p => { if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); };
+if(location.hash==='#library') renderLibrary(); if(location.hash==='#studio') renderStudio();
 </script>
 </body>
 </html>
