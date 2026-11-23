@@ -257,7 +257,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-23';
+const APP_VERSION = '2026.11.23-24';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -1617,7 +1617,8 @@ const lookChips = (cur, attr) => Object.keys(REAL_LOOK).map(k=>`<button class="c
 const mediaBox = (m, isV, ratio) => m ? (isV?`<video src="${m.url}" controls playsinline style="width:100%;max-width:320px;aspect-ratio:${ratio};object-fit:cover;border-radius:10px;background:#000"></video>`:`<img src="${m.url}" style="width:100%;max-width:320px;aspect-ratio:${ratio};object-fit:cover;border-radius:10px">`) : '';
 
 /* ---------- ✏️ 프롬프트 만들기 ---------- */
-const PB={what:'', kind:'image', ind:'cafe', look:'phone', cam:'', light:'', comp:'', out:'', busy:false};
+const PB={what:'', kind:'video', ind:'cafe', look:'ad', // 처음부터 🎬 영상용 · 📷 광고가 선택됨
+  cam:'', light:'', comp:'', out:'', busy:false};
 const PB_OPT={
   cam:{'천천히 다가가기':'slow push-in','주위를 돌기':'slow orbit around the subject','옆으로 흐르기':'slow lateral tracking shot','위에서 내려다보기':'top-down overhead shot','손에 들고 찍기':'handheld, slight natural shake','고정':'static locked-off shot'},
   light:{'따뜻한 조명':'warm tungsten lighting','자연광 창가':'soft natural window light','해 질 녘':'golden hour sunlight','밤 네온':'night ambience with neon reflections','밝고 깨끗한':'bright clean even lighting'},
