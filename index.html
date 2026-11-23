@@ -171,7 +171,6 @@ details summary{cursor:pointer;font-weight:700}
 
   <!-- 기획 자동 만들기 -->
   <section class="page" id="p-plan">
-    <div id="refCard"></div>
     <div class="card">
       <h3>1. 고객 정보 넣기</h3>
       <p class="muted" style="margin-top:-4px">채우고 <b>기획안 자동 만들기</b>를 누르면 기획안, 장면표, 자막·나레이션, 장면별 AI 프롬프트, 해시태그, 게시글이 한 번에 나옵니다.</p>
@@ -211,6 +210,7 @@ details summary{cursor:pointer;font-weight:700}
   <!-- 도구 -->
   <section class="page" id="p-archive"><div id="archiveBox"></div></section>
   <section class="page" id="p-storyboard"><div id="sbBox"></div></section>
+  <section class="page" id="p-refana"><div id="refCard"></div></section>
   <section class="page" id="p-promptp"><div id="promptBox"></div></section>
   <section class="page" id="p-imagegen"><div id="imagegenBox"></div></section>
   <section class="page" id="p-videogen"><div id="videogenBox"></div></section>
@@ -257,7 +257,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-22';
+const APP_VERSION = '2026.11.23-23';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -911,14 +911,14 @@ $('#importFile').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; t
 $('#resetBtn').onclick=()=>{ if(confirm('주문·기획안·설정을 모두 지울까요? 되돌릴 수 없어요. 먼저 백업을 권해요.') && confirm('정말 지울까요?')){ DB=defaults(); save(); applyTheme(); renderAll(); toast('모두 지웠어요'); } };
 
 /* ---------- 화면 이동 ---------- */
-const PAGES=[['home','🏠','홈'],['sales','📈','매출 · 목표'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드'],['promptp','✏️','프롬프트'],['imagegen','🖼','이미지 생성'],['videogen','🎬','영상 제작'],['loop','🔁','루프 영상'],['refsheet','🧾','레퍼런스 시트'],['fashion','👗','패션 AI'],['music','🎵','배경음악']];
+const PAGES=[['home','🏠','홈'],['sales','📈','매출 · 목표'],['plan','🎬','기획 만들기'],['studio','🎛','스튜디오'],['orders','📋','주문'],['library','🗂','작업함'],['settings','⚙️','설정'],['archive','🗄','레퍼런스 아카이브'],['storyboard','🧩','스토리보드'],['refana','🔍','레퍼런스 분석'],['promptp','✏️','프롬프트'],['imagegen','🖼','이미지 생성'],['videogen','🎬','영상 제작'],['loop','🔁','루프 영상'],['refsheet','🧾','레퍼런스 시트'],['fashion','👗','패션 AI'],['music','🎵','배경음악']];
 // 왼쪽 메뉴: 묶음(섹션)별로 / to = 그 화면 안의 칸으로 바로 이동
 const SIDE=[
   {k:'home',i:'🏠',l:'홈'},
   {k:'library',i:'🗂',l:'작업함'},
   {sec:'영상 만들기'},
   {k:'plan',i:'📝',l:'기획 만들기',to:'top'},
-  {k:'plan',i:'🔍',l:'레퍼런스 분석',to:'refCard'},
+  {k:'refana',i:'🔍',l:'레퍼런스 분석'},
   {k:'promptp',i:'✏️',l:'프롬프트',dot:1},
   {k:'imagegen',i:'🖼',l:'이미지 생성',dot:1},
   {k:'videogen',i:'🎬',l:'영상 제작',dot:1},
@@ -1227,12 +1227,12 @@ document.addEventListener('click', async e=>{
 let REF_ANALYSIS=null, REF_FILE=null;
 function renderRefCard(){
   const box=document.getElementById('refCard'); if(!box) return; const R=REF_ANALYSIS;
-  box.innerHTML=`<details class="card"${R?' open':''}><summary style="font-size:16px">🔍 잘된 영상 분석하기 (레퍼런스) <span class="muted" style="font-weight:400">· 선택</span></summary>
+  box.innerHTML=`<div class="card"><h3>🔍 잘된 영상 분석하기</h3>
     <p class="muted">잘된 다른 가게의 쇼츠·릴스 <b>영상 파일</b>을 올리면, AI가 <b>처음 3초 훅·장면 순서·자막·음악·편집 속도</b>를 분석해요. 그 <b>구조만</b> 내 기획에 참고해요. (장면·대사를 그대로 베끼면 저작권 문제가 생겨요)</p>
     <p class="muted">인스타·유튜브 영상은 휴대폰 <b>화면 녹화</b>로 저장한 뒤 올리면 돼요. 30초 안쪽, 18MB 이하 · 1회 약 수십 원</p>
     <div class="row"><label class="btn" style="margin:0;color:var(--ink)">🎞 영상 올리기<input type="file" accept="video/*" id="ref_file" hidden></label>${R?'<button class="btn danger" id="ref_clear">분석 지우기</button>':''}<span class="muted" id="ref_msg"></span></div>
     ${R?refView(R):''}
-  </details>`;
+  </div>`;
 }
 function refView(R){
   const sc=(R['장면']||[]).map(s=>`<tr><td style="white-space:nowrap">${esc(s['초']||'')}</td><td>${esc(s['역할']||'')}</td><td>${esc(s['화면']||'')}${s['카메라']?`<br><span class="muted">${esc(s['카메라'])}</span>`:''}</td><td>${esc(s['자막']||'')}</td></tr>`).join('');
@@ -1271,8 +1271,8 @@ document.addEventListener('click', e=>{
   if(e.target.id==='ref_arch' && REF_ANALYSIS){ const f=readForm(); libPut({project:'레퍼런스 아카이브',kind:'archive',title:(REF_FILE?.name||'분석한 영상'),tag:IND[f.ind].label,memo:(REF_ANALYSIS['잘된_이유']||[]).join(' / '),analysis:REF_ANALYSIS,blob:REF_FILE||null,mime:REF_FILE?.type||'text/plain',size:REF_FILE?.size||0}).then(()=>toast('레퍼런스 아카이브에 보관했어요')); }
   if(e.target.id==='ref_apply' && REF_ANALYSIS){
     const n=Number(REF_ANALYSIS['길이초'])||30; const L=[15,30,60,90].reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
-    form.len=L; initPlanForm(); toast(`길이를 ${L}초로 맞췄어요. 정보를 채우고 기획안을 만들어 보세요`);
-    document.getElementById('f_name').scrollIntoView({behavior:'smooth',block:'center'});
+    form.len=L; initPlanForm(); go('plan'); toast(`길이를 ${L}초로 맞췄어요. 정보를 채우고 기획안을 만들어 보세요`);
+    setTimeout(()=>document.getElementById('f_name').scrollIntoView({behavior:'smooth',block:'center'}),100);
   }
 });
 const _aiPrompt = aiPrompt;
@@ -1533,7 +1533,7 @@ document.addEventListener('click', async e=>{
     let blob=file||null; if(blob && blob.type.startsWith('image/')) blob=await shrinkImage(blob);
     await libPut({project:'레퍼런스 아카이브',kind:'archive',title:title||(file?file.name:link),tag:document.getElementById('arc_tag').value,link,memo,blob,mime:blob?blob.type:'text/plain',size:blob?blob.size:0}); toast('보관했어요'); renderArchive(); return; }
   const an=e.target.closest('[data-arcana]'); if(an){ const a=await libGet(an.dataset.arcana); ARC.busy=a.id; renderArchive(); try{ a.analysis=await analyzeVideoBlob(a.blob); await libPut(a); toast('분석했어요'); }catch(err){ toast('❌ '+err.message); } ARC.busy=''; renderArchive(); return; }
-  const us=e.target.closest('[data-arcuse]'); if(us){ const a=await libGet(us.dataset.arcuse); REF_ANALYSIS=a.analysis; renderRefCard(); go('plan'); setTimeout(()=>{ const c=document.getElementById('refCard'); c?.querySelector('details')&&(c.querySelector('details').open=true); c?.scrollIntoView({behavior:'smooth'}); },100); toast('레퍼런스로 넣었어요. 기획안을 만들면 참고해요'); return; }
+  const us=e.target.closest('[data-arcuse]'); if(us){ const a=await libGet(us.dataset.arcuse); REF_ANALYSIS=a.analysis; go('refana'); toast('분석 결과를 불러왔어요. 「이 구조 참고해서 기획하기」를 누르세요'); return; }
   const d=e.target.closest('[data-arcdel]'); if(d && confirm('이 보관물을 지울까요?')){ await libDel(d.dataset.arcdel); renderArchive(); }
 });
 
@@ -2055,7 +2055,7 @@ document.addEventListener('click', async e=>{
 const _renderSettings = renderSettings;
 renderSettings = function(){ _renderSettings(); renderAISettings(); };
 renderAISettings(); renderRefCard();
-window.onPage = p => { if(p==='home') renderHomeGallery(); if(p==='sales') renderHome(); if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard(); if(p==='promptp') renderPromptPage(); if(p==='imagegen') renderImageGen(); if(p==='videogen') renderVideoGen(); if(p==='loop') renderLoopPage(); if(p==='refsheet') renderRefSheet(); if(p==='fashion') renderFashion(); if(p==='music') renderMusic();
+window.onPage = p => { if(p==='home') renderHomeGallery(); if(p==='sales') renderHome(); if(p==='library') renderLibrary(); if(p==='studio') renderStudio(); if(p==='archive') renderArchive(); if(p==='storyboard') renderStoryboard(); if(p==='refana') renderRefCard(); if(p==='promptp') renderPromptPage(); if(p==='imagegen') renderImageGen(); if(p==='videogen') renderVideoGen(); if(p==='loop') renderLoopPage(); if(p==='refsheet') renderRefSheet(); if(p==='fashion') renderFashion(); if(p==='music') renderMusic();
 };
 window.onPage(location.hash.slice(1)||'home');
 </script>
