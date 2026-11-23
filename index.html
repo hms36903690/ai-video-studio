@@ -245,7 +245,7 @@ details summary{cursor:pointer;font-weight:700}
 
 <script>
 'use strict';
-const APP_VERSION = '2026.11.23-11';
+const APP_VERSION = '2026.11.23-12';
 const KEY = 'aivs_studio_v1'; // 영업비서 앱('hmsfc_app_v2')과 다른 저장 공간
 
 /* ---------- 기본 데이터 ---------- */
@@ -1577,7 +1577,7 @@ function refView(R){
     <p style="margin:8px 0 2px"><b>자막</b> ${esc(R['자막_스타일']||'')} · <b>음악</b> ${esc(R['음악_분위기']||'')} · <b>속도</b> ${esc(R['편집_속도']||'')}</p>
     <p style="margin:8px 0 2px"><b>👍 잘된 이유</b></p><ul style="margin:0;padding-left:20px">${li(R['잘된_이유'])}</ul>
     <p style="margin:8px 0 2px"><b>💡 내 가게에 적용할 점</b></p><ul style="margin:0;padding-left:20px">${li(R['내_가게에_적용할_점'])}</ul>
-    <div class="row" style="margin-top:10px"><button class="btn primary" id="ref_apply">이 구조 참고해서 기획하기</button><button class="btn" id="ref_arch">🗄 아카이브에 보관</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn primary" id="ref_apply">이 구조 참고해서 기획하기</button><button class="btn" id="ref_arch">🗄 레퍼런스 아카이브에 보관</button></div>
     <p class="muted" style="margin:6px 0 0">길이를 맞추고, 기획 결과와 'AI에게 보낼 프롬프트'에 이 분석이 참고로 들어가요.</p>`;
 }
 async function analyzeRef(file){
@@ -1603,7 +1603,7 @@ function refSummary(R){ if(!R) return ''; return `- 훅: ${R['훅']||''}\n- 장�
 document.addEventListener('change', e=>{ if(e.target.id==='ref_file' && e.target.files[0]) analyzeRef(e.target.files[0]); });
 document.addEventListener('click', e=>{
   if(e.target.id==='ref_clear'){ REF_ANALYSIS=null; REF_FILE=null; renderRefCard(); }
-  if(e.target.id==='ref_arch' && REF_ANALYSIS){ const f=readForm(); libPut({project:'아카이브',kind:'archive',title:(REF_FILE?.name||'분석한 영상'),tag:IND[f.ind].label,memo:(REF_ANALYSIS['잘된_이유']||[]).join(' / '),analysis:REF_ANALYSIS,blob:REF_FILE||null,mime:REF_FILE?.type||'text/plain',size:REF_FILE?.size||0}).then(()=>toast('아카이브에 보관했어요')); }
+  if(e.target.id==='ref_arch' && REF_ANALYSIS){ const f=readForm(); libPut({project:'레퍼런스 아카이브',kind:'archive',title:(REF_FILE?.name||'분석한 영상'),tag:IND[f.ind].label,memo:(REF_ANALYSIS['잘된_이유']||[]).join(' / '),analysis:REF_ANALYSIS,blob:REF_FILE||null,mime:REF_FILE?.type||'text/plain',size:REF_FILE?.size||0}).then(()=>toast('레퍼런스 아카이브에 보관했어요')); }
   if(e.target.id==='ref_apply' && REF_ANALYSIS){
     const n=Number(REF_ANALYSIS['길이초'])||30; const L=[15,30,60,90].reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
     form.len=L; initPlanForm(); toast(`길이를 ${L}초로 맞췄어요. 정보를 채우고 기획안을 만들어 보세요`);
@@ -2040,7 +2040,7 @@ function renderAIChat(){
     <p class="muted" style="margin:6px 0 0">${name} 입력칸이 비어 있으면 <b>길게 눌러 붙여넣기</b> 하세요. (지시문은 이미 복사돼 있어요)</p>
     <label style="margin-top:14px">② ${name}가 준 답 붙여넣기</label><textarea id="aic_result" style="min-height:140px;font-size:14px" placeholder="${T.out==='nodes'?'[그림] … / [영상] … 형식의 답을 붙여넣기':T.out==='pres'?'[컷] … 형식의 답을 붙여넣기':'받은 답을 붙여넣으면 복사·보관할 수 있어요'}">${esc(AIC.result)}</textarea>
     <div class="row" style="margin-top:8px">${T.out==='nodes'?'<button class="btn primary" id="aic_nodes">🎛 스튜디오 노드로 만들기</button>':''}${T.out==='pres'?'<button class="btn primary" id="aic_pres">🎤 진행자 대본으로 넣기</button>':''}
-      <button class="btn" id="aic_arch">🗄 아카이브에 보관</button></div>
+      <button class="btn" id="aic_arch">🗄 레퍼런스 아카이브에 보관</button></div>
     <div class="muted" id="aic_msg" style="margin-top:6px">${esc(AIC.msg)}</div></div>`;
 }
 function parseNodes(text){
@@ -2066,7 +2066,7 @@ document.addEventListener('click', async e=>{
     const cuts=res.split('\n').map(l=>l.trim().match(/^\[컷\]\s*(.+)$/)).filter(Boolean).map(m=>({line:m[1].replace(/^["“]|["”]$/g,'').trim(),status:'대기'}));
     if(!cuts.length){ AIC.msg='❌ [컷] 줄을 찾지 못했어요.'; renderAIChat(); return; }
     const Pr=presFor(currentPlan); Pr.cuts=cuts; Pr.video=null; go('plan'); renderPresenter(currentPlan); setTimeout(()=>document.getElementById('presCard')?.scrollIntoView({behavior:'smooth'}),100); toast(`대본 ${cuts.length}컷을 넣었어요`); return; }
-  if(id==='aic_arch'){ if(!res){ toast('붙여넣은 답이 없어요'); return; } await libPut({project:currentPlan?.v.name||'기타',kind:'archive',title:`${AIC.target==='claude'?'Claude':'ChatGPT'} · ${AIC_TASKS[AIC.task].l.replace(/^\S+\s/,'')}`,tag:currentPlan?IND[currentPlan.v.ind].label:'기타',memo:res,blob:null,mime:'text/plain'}); AIC.msg='🗄 아카이브에 보관했어요.'; renderAIChat(); return; }
+  if(id==='aic_arch'){ if(!res){ toast('붙여넣은 답이 없어요'); return; } await libPut({project:currentPlan?.v.name||'기타',kind:'archive',title:`${AIC.target==='claude'?'Claude':'ChatGPT'} · ${AIC_TASKS[AIC.task].l.replace(/^\S+\s/,'')}`,tag:currentPlan?IND[currentPlan.v.ind].label:'기타',memo:res,blob:null,mime:'text/plain'}); AIC.msg='🗄 레퍼런스 아카이브에 보관했어요.'; renderAIChat(); return; }
 });
 
 /* ---------- 🗄 레퍼런스 아카이브: 잘된 영상·사진·링크·분석·메모 모음 ---------- */
@@ -2112,7 +2112,7 @@ document.addEventListener('click', async e=>{
   if(e.target.id==='arc_save'){ const title=document.getElementById('arc_title').value.trim(), link=document.getElementById('arc_link').value.trim(), memo=document.getElementById('arc_memo').value.trim(), file=document.getElementById('arc_file').files[0];
     if(!title && !link && !file && !memo){ toast('제목·링크·파일·메모 중 하나는 넣어 주세요'); return; }
     let blob=file||null; if(blob && blob.type.startsWith('image/')) blob=await shrinkImage(blob);
-    await libPut({project:'아카이브',kind:'archive',title:title||(file?file.name:link),tag:document.getElementById('arc_tag').value,link,memo,blob,mime:blob?blob.type:'text/plain',size:blob?blob.size:0}); toast('보관했어요'); renderArchive(); return; }
+    await libPut({project:'레퍼런스 아카이브',kind:'archive',title:title||(file?file.name:link),tag:document.getElementById('arc_tag').value,link,memo,blob,mime:blob?blob.type:'text/plain',size:blob?blob.size:0}); toast('보관했어요'); renderArchive(); return; }
   const an=e.target.closest('[data-arcana]'); if(an){ const a=await libGet(an.dataset.arcana); ARC.busy=a.id; renderArchive(); try{ a.analysis=await analyzeVideoBlob(a.blob); await libPut(a); toast('분석했어요'); }catch(err){ toast('❌ '+err.message); } ARC.busy=''; renderArchive(); return; }
   const us=e.target.closest('[data-arcuse]'); if(us){ const a=await libGet(us.dataset.arcuse); REF_ANALYSIS=a.analysis; renderRefCard(); go('plan'); setTimeout(()=>{ const c=document.getElementById('refCard'); c?.querySelector('details')&&(c.querySelector('details').open=true); c?.scrollIntoView({behavior:'smooth'}); },100); toast('레퍼런스로 넣었어요. 기획안을 만들면 참고해요'); return; }
   const d=e.target.closest('[data-arcdel]'); if(d && confirm('이 보관물을 지울까요?')){ await libDel(d.dataset.arcdel); renderArchive(); }
